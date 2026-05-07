@@ -27,8 +27,16 @@
   "license": "AGPL-3.0-only",
   "frameworks": "*",
   "platforms": "*",
-  "headers": [],
-  "examples": [],
+  "headers": [
+    "include/timebase/timebase-api.h",
+    "include/timebase/timebase.h"
+  ],
+  "examples": [
+    {
+      "name": "Timebase Example",
+      "files": "examples/timebase-example.c"
+    }
+  ],
   "export": {
     "include": [
       "src/**",
