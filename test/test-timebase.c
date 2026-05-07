@@ -1,3 +1,10 @@
+/*!
+ * \file test-timebase.c
+ * \date 2026-05-7
+ * \author Alessandro Giustina [giustinalessandro@gmail.com]
+ *
+ * \brief Unit tests for the timebase module
+ */
 
 #include "unity.h"
 #include "timebase-api.h"
