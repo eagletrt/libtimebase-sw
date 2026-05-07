@@ -40,6 +40,14 @@ void test_timebase_api_init_zero_resolution_defaults_to_one(void) {
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(0U, timebase_get_time(&timebase_handler), "Time not initialized to zero");
 }
 
+void test_timebase_api_init_null_pointer_returns_null_pointer(void) {
+    enum TimebaseReturnCode rc;
+
+    rc = timebase_api_init(NULL, 10U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TIMEBASE_RC_NULL_POINTER, rc, "Expected null pointer return code");
+}
+
 void test_timebase_inc_tick_when_disabled_returns_disabled_and_does_not_increment(void) {
     enum TimebaseReturnCode rc;
 
@@ -60,6 +68,14 @@ void test_timebase_inc_tick_when_enabled_increments_ticks(void) {
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(1U, timebase_get_tick(&timebase_handler), "Tick count not incremented");
 }
 
+void test_timebase_inc_tick_null_pointer_returns_null_pointer(void) {
+    enum TimebaseReturnCode rc;
+
+    rc = timebase_inc_tick(NULL);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TIMEBASE_RC_NULL_POINTER, rc, "Expected null pointer return code");
+}
+
 void test_timebase_get_time_scales_with_resolution(void) {
     enum TimebaseReturnCode rc;
 
@@ -72,6 +88,29 @@ void test_timebase_get_time_scales_with_resolution(void) {
     TEST_ASSERT_EQUAL_MESSAGE(TIMEBASE_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(2U, timebase_get_tick(&timebase_handler), "Tick count not incremented correctly");
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(10U, timebase_get_time(&timebase_handler), "Time not scaled correctly with resolution");
+}
+
+void test_timebase_get_time_null_pointer_returns_zero(void) {
+    uint32_t time = timebase_get_time(NULL);
+
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(0U, time, "Expected time to be zero for null pointer");
+}
+
+void test_timebase_get_resolution_null_pointer_returns_zero(void) {
+    uint32_t resolution = timebase_get_resolution(NULL);
+
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(0U, resolution, "Expected resolution to be zero for null pointer");
+}
+
+void test_timebase_set_enable_null_pointer_does_nothing(void) {
+    timebase_set_enable(NULL, true);
+    // If no crash occurs, the test passes
+}
+
+void test_timebase_get_tick_null_pointer_returns_zero(void) {
+    uint32_t tick = timebase_get_tick(NULL);
+
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(0U, tick, "Expected tick to be zero for null pointer");
 }
 
 void test_timebase_disable_after_increment_stops_future_increments(void) {
@@ -113,5 +152,11 @@ int main() {
     RUN_TEST(test_timebase_get_time_scales_with_resolution);
     RUN_TEST(test_timebase_disable_after_increment_stops_future_increments);
     RUN_TEST(test_timebase_reinit_clears_ticks_and_disables_counter);
+    RUN_TEST(test_timebase_api_init_null_pointer_returns_null_pointer);
+    RUN_TEST(test_timebase_inc_tick_null_pointer_returns_null_pointer);
+    RUN_TEST(test_timebase_get_time_null_pointer_returns_zero);
+    RUN_TEST(test_timebase_get_resolution_null_pointer_returns_zero);
+    RUN_TEST(test_timebase_set_enable_null_pointer_does_nothing);
+    RUN_TEST(test_timebase_get_tick_null_pointer_returns_zero);
     return UNITY_END();
 }

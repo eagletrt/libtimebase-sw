@@ -12,6 +12,10 @@
 #include <string.h>
 
 enum TimebaseReturnCode timebase_api_init(struct TimebaseHandler *timebase_handler, const uint32_t resolution_ms) {
+
+    if (timebase_handler == NULL) {
+        return TIMEBASE_RC_NULL_POINTER;
+    }
     // Initialize timebase to 0
     memset(timebase_handler, 0U, sizeof(*timebase_handler));
 
@@ -23,10 +27,16 @@ enum TimebaseReturnCode timebase_api_init(struct TimebaseHandler *timebase_handl
 }
 
 void timebase_set_enable(struct TimebaseHandler *timebase_handler, const bool enabled) {
+    if (timebase_handler == NULL) {
+        return;
+    }
     timebase_handler->enabled = enabled;
 }
 
 enum TimebaseReturnCode timebase_inc_tick(struct TimebaseHandler *timebase_handler) {
+    if (timebase_handler == NULL) {
+        return TIMEBASE_RC_NULL_POINTER;
+    }
     if (!timebase_handler->enabled)
         return TIMEBASE_RC_DISABLED;
     ++timebase_handler->ticks;
@@ -34,13 +44,22 @@ enum TimebaseReturnCode timebase_inc_tick(struct TimebaseHandler *timebase_handl
 }
 
 uint32_t timebase_get_tick(struct TimebaseHandler *timebase_handler) {
+    if (timebase_handler == NULL) {
+        return 0U;
+    }
     return timebase_handler->ticks;
 }
 
 uint32_t timebase_get_time(struct TimebaseHandler *timebase_handler) {
+    if (timebase_handler == NULL) {
+        return 0U;
+    }
     return TIMEBASE_TICKS_TO_MS(timebase_handler->ticks, timebase_handler->resolution);
 }
 
 uint32_t timebase_get_resolution(struct TimebaseHandler *timebase_handler) {
+    if (timebase_handler == NULL) {
+        return 0U;
+    }
     return timebase_handler->resolution;
 }
