@@ -26,11 +26,12 @@ enum TimebaseReturnCode timebase_api_init(struct TimebaseHandler *timebase_handl
     return TIMEBASE_RC_OK;
 }
 
-void timebase_set_enable(struct TimebaseHandler *timebase_handler, const bool enabled) {
+enum TimebaseReturnCode timebase_set_enable(struct TimebaseHandler *timebase_handler, const bool enabled) {
     if (timebase_handler == NULL) {
-        return;
+        return TIMEBASE_RC_NULL_POINTER;
     }
     timebase_handler->enabled = enabled;
+    return TIMEBASE_RC_OK;
 }
 
 enum TimebaseReturnCode timebase_inc_tick(struct TimebaseHandler *timebase_handler) {

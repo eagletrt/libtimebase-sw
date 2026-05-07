@@ -18,7 +18,7 @@
  * \param timebase_handler Pointer to the timebase handler to initialize
  * \param resolution The amount of time that represent one tick (in ms)
  *
- * \retval TIMEBASE_RC_NULL_POINTER if a tasks is not implemented
+ * \retval TIMEBASE_RC_NULL_POINTER if the timebase_handler pointer is NULL
  * \retval TIMEBASE_RC_OK otherwise
  */
 enum TimebaseReturnCode timebase_api_init(struct TimebaseHandler *timebase_handler, const uint32_t resolution_ms);
@@ -28,14 +28,18 @@ enum TimebaseReturnCode timebase_api_init(struct TimebaseHandler *timebase_handl
  *
  * \param timebase_handler Pointer to the timebase handler
  * \param enabled True to enable the timebase false to disable it
+ * 
+ * \retval TIMEBASE_RC_NULL_POINTER if the timebase_handler pointer is NULL
+ * \retval TIMEBASE_RC_OK otherwise
  */
-void timebase_set_enable(struct TimebaseHandler *timebase_handler, const bool enabled);
+enum TimebaseReturnCode timebase_set_enable(struct TimebaseHandler *timebase_handler, const bool enabled);
 
 /*!
  * \brief Increment the internal timebase by one tick
  * 
  * \param timebase_handler Pointer to the timebase handler
- *
+ * 
+ * \retval TIMEBASE_RC_NULL_POINTER if the timebase_handler pointer is NULL
  * \retval TIMEBASE_RC_DISABLED if the timebase is disabled
  * \retval TIMEBASE_RC_OK otherwise
  */
@@ -46,7 +50,7 @@ enum TimebaseReturnCode timebase_inc_tick(struct TimebaseHandler *timebase_handl
  * 
  * \param timebase_handler Pointer to the timebase handler
  *
- * \returns uint32_t The number of ticks
+ * \returns uint32_t The number of ticks, if the timebase_handler pointer is NULL, returns 0
  */
 uint32_t timebase_get_tick(struct TimebaseHandler *timebase_handler);
 
@@ -55,7 +59,7 @@ uint32_t timebase_get_tick(struct TimebaseHandler *timebase_handler);
  *
  * \param timebase_handler Pointer to the timebase handler
  *
- * \returns uint32_t The current elapsed time
+ * \returns uint32_t The current elapsed time, if the timebase_handler pointer is NULL, returns 0
  */
 uint32_t timebase_get_time(struct TimebaseHandler *timebase_handler);
 
@@ -64,7 +68,7 @@ uint32_t timebase_get_time(struct TimebaseHandler *timebase_handler);
  * 
  * \param timebase_handler Pointer to the timebase handler
  *
- * \returns uint32_t The timebase resolution
+ * \returns uint32_t The timebase resolution, if the timebase_handler pointer is NULL, returns 0
  */
 uint32_t timebase_get_resolution(struct TimebaseHandler *timebase_handler);
 

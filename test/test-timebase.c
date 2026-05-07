@@ -60,10 +60,12 @@ void test_timebase_inc_tick_when_disabled_returns_disabled_and_does_not_incremen
 
 void test_timebase_inc_tick_when_enabled_increments_ticks(void) {
     enum TimebaseReturnCode rc;
+    enum TimebaseReturnCode rc_enable;
 
-    timebase_set_enable(&timebase_handler, true);
+    rc_enable = timebase_set_enable(&timebase_handler, true);
     rc = timebase_inc_tick(&timebase_handler);
 
+    TEST_ASSERT_EQUAL_MESSAGE(TIMEBASE_RC_OK, rc_enable, "Failed to enable timebase");
     TEST_ASSERT_EQUAL_MESSAGE(TIMEBASE_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(1U, timebase_get_tick(&timebase_handler), "Tick count not incremented");
 }
@@ -103,8 +105,9 @@ void test_timebase_get_resolution_null_pointer_returns_zero(void) {
 }
 
 void test_timebase_set_enable_null_pointer_does_nothing(void) {
-    timebase_set_enable(NULL, true);
-    // If no crash occurs, the test passes
+
+    enum TimebaseReturnCode rc = timebase_set_enable(NULL, true);
+    TEST_ASSERT_EQUAL_MESSAGE(TIMEBASE_RC_NULL_POINTER, rc, "Expected null pointer return code");
 }
 
 void test_timebase_get_tick_null_pointer_returns_zero(void) {
