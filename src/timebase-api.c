@@ -19,7 +19,7 @@ enum TimebaseReturnCode timebase_api_init(const uint32_t resolution_ms) {
 
     // Set default parameters
     timebase_handler.enabled = false;
-    timebase_handler.resolution = (resolution_ms == 0U) ? 1U : resolution_ms;
+    timebase_handler.resolution = EAGLETRT_API_MAX(1U, resolution_ms);
 
     return TIMEBASE_RC_OK;
 }
