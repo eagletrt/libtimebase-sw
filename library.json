@@ -1,16 +1,23 @@
 {
   "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
-  "name": "LibraryTemplate",
-  "version": "1.0.0",
-  "description": "Templates for libraries compatible with the PlatformIO ecosystem",
+  "name": "libtimebase-sw",
+  "version": "0.1.0",
+  "description": "Timebase, task and watchdog implementation",
   "keywords": [
-    "template"
+    "Timebase",
+    "Task",
+    "Watchdog"
   ],
   "repository": {
     "type": "git",
     "url": ""
   },
   "authors": [
+    {
+      "name": "Alessandro Giustina",
+      "email": "giustinalessandro@gmail.com",
+      "maintainer": true
+    },
     {
       "name": "Antonio Gelain",
       "email": "antonio.gelain2@gmail.com",
@@ -26,6 +33,21 @@
     "include": [
       "src/**",
       "include/**"
+    ]
+  },
+  "dependencies": [
+    {
+      "name": "min-heap",
+      "version": "https://github.com/eagletrt/libmin-heap-sw.git#dev"
+    },
+    {
+      "name": "LibEagleTRT",
+      "version": "https://github.com/eagletrt/libeagletrt-sw.git#v0.1.0"
+    }
+  ],
+  "build": {
+    "flags": [
+      "-Iinclude/timebase"
     ]
   }
 }
