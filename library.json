@@ -55,7 +55,8 @@
   ],
   "build": {
     "flags": [
-      "-Iinclude/timebase"
+      "-Iinclude/timebase",
+      "-Iinclude/watchdogs"
     ]
   }
 }

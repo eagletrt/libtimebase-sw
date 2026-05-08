@@ -3,16 +3,14 @@
  * \date 2026-05-7
  * \author Alessandro Giustina [giustinalessandro@gmail.com]
  *
- * \brief Functions to manage periodic tasks at certain intervals
+ * \brief Functions to manage watchdogs
  */
 
 #include "watchdogs.h"
 
-// Should this function have null guards??
-// I am not sure
-int8_t prv_task_compare(void *a, void *b) {
-    const struct Task *const f = *(struct Task **)a;
-    const struct Task *const s = *(struct Task **)b;
+EAGLETRT_STATIC int8_t prv_watchdog_compare(void *a, void *b) {
+    const struct Watchdog *const f = *(struct Watchdog **)a;
+    const struct Watchdog *const s = *(struct Watchdog **)b;
 
     // Compare timestamps
     if (f->next_trigger < s->next_trigger) {
@@ -24,352 +22,361 @@ int8_t prv_task_compare(void *a, void *b) {
 
     /**************************************************************************
      * For the equality check, in addition to the ticks, the pointers to the
-     * task must also be equal, otherwise -1 or 1 may be returned
+     * watchdog must also be equal, otherwise -1 or 1 may be returned
      * In this case 1 is preferred because it avoid useless swaps between
      * elements that have the same number of ticks
      ***************************************************************************/
-    if (f->task_function == s->task_function) {
+    if (f->watchdog_callback == s->watchdog_callback) {
         return 0;
     }
     return 1;
 }
 
-/*!
- * \brief This function handles the phase transition of a single function.
- * POSSIBLE TRANSITIONS
- * same-state transitions -> no-op
- * 
- * ENABLED -> PAUSED removes task from heap and sets paused state
- * ENABLED -> DISABLED removes task from heap and sets disabled state
- * 
- * PAUSED -> ENABLED if the task isn't one shot the next trigger time is calculated using the remaining time from when it was paused and added to heap
- * DISABLED -> ENABLED the next trigger time is set from the start time of the task and then it is added to heap
- * 
- * DISABLED -> PAUSED this just updates the status of the task. As the trigger time is calculated only when entering enabled this is defined behaviour
- * and a disabled task can be "paused" as if it was paused from the start.
- * 
- * PAUSED -> DISABLED same as above
- * 
- * \param tasks_handler the handler structure 
- * \param task_id the ID of the task to modify
- * \param tick the current tick
- * 
- * \retval TASKS_RC_NULL_POINTER the task handler pointer is null
- * \retval TASKS_RC_INVALID_ID the task id is invalid
- * \retval TASKS_RC_ERROR problems were encountered when accessing the heap
- * \retval TASKS_RC_OK the function executed correctly
- */
-EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHandler *tasks_handler, int8_t task_id, uint32_t tick) {
-
-    if (tasks_handler == NULL) {
-        return TASKS_RC_NULL_POINTER;
+EAGLETRT_STATIC enum WatchdogReturnCode prv_watchdog_unregister(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog) {
+    if (watchdogs_handler == NULL || watchdog == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
     }
-    if (task_id >= tasks_handler->task_num) {
-        return TASKS_RC_INVALID_ID;
+    if (watchdog->watchdog_state == WATCHDOG_STATE_TIMED_OUT) {
+        return WATCHDOG_RC_TIMED_OUT;
+    }
+    if (watchdog->watchdog_state != WATCHDOG_STATE_RUNNING) {
+        return WATCHDOG_RC_NOT_RUNNING;
     }
 
-    enum TaskState from = tasks_handler->actual_state[task_id];
-    enum TaskState to = tasks_handler->task_list[task_id].task_state;
+    watchdog->watchdog_state = WATCHDOG_STATE_NOT_RUNNING;
 
-    if (from == to) {
-        return TASKS_RC_OK;
+    long find_result = min_heap_api_find(&watchdogs_handler->scheduled_watchdogs, &watchdog);
+    if (find_result < 0) {
+        return WATCHDOG_RC_ERROR;
+    }
+    if (min_heap_api_remove(&watchdogs_handler->scheduled_watchdogs, find_result, NULL) != MIN_HEAP_RC_OK) {
+        return WATCHDOG_RC_ERROR;
     }
 
-    struct Task *task = &tasks_handler->task_list[task_id];
-
-    // Leaving ENABLED
-    if (from == TASKS_STATE_ENABLED) {
-        long idx = min_heap_api_find(&tasks_handler->scheduled_tasks, &task);
-        if (idx < 0) {
-            return TASKS_RC_ERROR;
-        }
-        if (min_heap_api_remove(&tasks_handler->scheduled_tasks, (size_t)idx, NULL) != MIN_HEAP_RC_OK) {
-            return TASKS_RC_ERROR;
-        }
-        task->last_update = tick;
-    }
-
-    // Entering ENABLED
-    if (to == TASKS_STATE_ENABLED) {
-        // If task is one-shot it doesn't make sense to take into accout the time when
-        // it was paused
-        if (from == TASKS_STATE_PAUSED && !task->one_shot) {
-            task->next_trigger = tick + (task->next_trigger - task->last_update);
-        } else {
-            task->next_trigger = tick + task->task_start;
-        }
-        if (min_heap_api_insert(&tasks_handler->scheduled_tasks, &task) != MIN_HEAP_RC_OK) {
-            return TASKS_RC_ERROR;
-        }
-    }
-
-    tasks_handler->actual_state[task_id] = to;
-    return TASKS_RC_OK;
+    return WATCHDOG_RC_OK;
 }
 
-/*!
- * \brief updates all tasks in the heap
- */
-EAGLETRT_STATIC enum TasksReturnCode prv_tasks_update_heap(struct TasksHandler *tasks_handler, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
-        return TASKS_RC_NULL_POINTER;
+enum WatchdogReturnCode watchdogs_api_init_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
+
+    if (watchdogs_handler == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
     }
 
-    for (int i = 0; i < tasks_handler->task_num; i++) {
-        enum TasksReturnCode rc = prv_handle_task_transition(tasks_handler, i, current_tick);
-        if (rc != TASKS_RC_OK) {
-            return rc;
-        }
-    }
-    return TASKS_RC_OK;
-}
+    memset(watchdogs_handler, 0, sizeof(*watchdogs_handler));
 
-enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList t_list, uint8_t num_tasks, uint32_t current_tick) {
+    arena_allocator_api_init(&watchdogs_handler->arena_handler);
 
-    if (tasks_handler == NULL || t_list == NULL) {
-        return TASKS_RC_NULL_POINTER;
-    }
-    if (num_tasks == 0 || num_tasks > MAX_TASKS) {
-        return TASKS_RC_INVALID_LIST;
-    }
-
-    // TODO: handle memory leaks do to double init
-    // arena_allocator_api_free(&tasks_handler->arena_handler);
-
-    memset(tasks_handler, 0, sizeof(*tasks_handler));
-
-    arena_allocator_api_init(&tasks_handler->arena_handler);
-
-    if (min_heap_api_init(&tasks_handler->scheduled_tasks,
-                          sizeof(struct Task *),
-                          MAX_TASKS,
-                          prv_task_compare,
-                          &tasks_handler->arena_handler) != MIN_HEAP_RC_OK) {
-        return TASKS_RC_ERROR;
+    if (min_heap_api_init(&watchdogs_handler->scheduled_watchdogs,
+                          sizeof(struct Watchdog *),
+                          MAX_WATCHDOGS,
+                          prv_watchdog_compare,
+                          &watchdogs_handler->arena_handler) != MIN_HEAP_RC_OK) {
+        return WATCHDOG_RC_ERROR;
     };
 
-    uint8_t actual_num_tasks = 0;
+    watchdogs_handler->prev_tick = current_tick;
 
-    for (uint8_t i = 0; i < num_tasks && t_list[i].task_function != NULL; ++i) {
-        if (t_list[i].task_id != i || t_list[i].task_state == TASKS_STATE_PAUSED) {
-            return TASKS_RC_INVALID_LIST;
-        }
-        tasks_handler->task_list[i] = t_list[i];
-        ++actual_num_tasks;
-    }
-
-    if (actual_num_tasks != num_tasks) {
-        return TASKS_RC_INVALID_LIST;
-    }
-
-    tasks_handler->task_num = num_tasks;
-
-    tasks_handler->prev_tick = current_tick;
-
-    prv_tasks_update_heap(tasks_handler, current_tick);
-
-    return TASKS_RC_OK;
+    return WATCHDOG_RC_OK;
 };
 
-enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
-        return TASKS_RC_NULL_POINTER;
+enum WatchdogReturnCode watchdogs_api_routine(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
+    if (watchdogs_handler == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
     }
-    if (tasks_handler->task_num == 0) {
-        return TASKS_RC_ERROR;
+    if (watchdogs_handler->prev_tick > current_tick) {
+        return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
     }
-    if (tasks_handler->prev_tick > current_tick) {
-        return TASKS_RC_TEMPORAL_DISCONTINUITY;
-    }
-    if (tasks_handler->task_module_enabled == false) {
-        return TASKS_RC_DISABLED;
+    if (watchdogs_handler->watchdog_module_enabled == false) {
+        return WATCHDOG_RC_NOT_RUNNING;
     }
 
-    if (min_heap_api_is_empty(&tasks_handler->scheduled_tasks)) {
-        return TASKS_RC_OK;
+    if (min_heap_api_is_empty(&watchdogs_handler->scheduled_watchdogs)) {
+        watchdogs_handler->prev_tick = current_tick;
+        return WATCHDOG_RC_OK;
     }
 
-    struct Task *next_task;
+    struct Watchdog *next_watchdog;
 
-    if (min_heap_api_remove(&tasks_handler->scheduled_tasks, 0U, &next_task) != MIN_HEAP_RC_OK) {
-        return TASKS_RC_ERROR;
+    if (min_heap_api_remove(&watchdogs_handler->scheduled_watchdogs, 0U, &next_watchdog) != MIN_HEAP_RC_OK) {
+        return WATCHDOG_RC_ERROR;
     }
 
     for (;;) {
-        if (next_task->next_trigger > current_tick) {
-            min_heap_api_insert(&tasks_handler->scheduled_tasks, &next_task);
+        if (next_watchdog->next_trigger > current_tick) {
+            min_heap_api_insert(&watchdogs_handler->scheduled_watchdogs, &next_watchdog);
             break;
         }
+
+        next_watchdog->watchdog_state = WATCHDOG_STATE_TIMED_OUT;
 
         // Execute the task
-        next_task->task_function();
+        next_watchdog->watchdog_callback();
 
-        next_task->last_update = current_tick;
-
-        if (!next_task->one_shot) {
-
-            // Update the next trigger time
-            next_task->next_trigger += EAGLETRT_API_MAX(next_task->task_interval, 1U);
-
-            // Reinsert the task with the updated trigger time
-            if (min_heap_api_insert(&tasks_handler->scheduled_tasks, &next_task) != MIN_HEAP_RC_OK) {
-                return TASKS_RC_ERROR;
-            }
-        } else {
-            // For one-shot tasks, just update the state to disabled and don't reinsert it into the heap
-            next_task->task_state = TASKS_STATE_DISABLED;
-            tasks_handler->actual_state[next_task->task_id] = TASKS_STATE_DISABLED;
-        }
-
-        if (min_heap_api_is_empty(&tasks_handler->scheduled_tasks)) {
+        if (min_heap_api_is_empty(&watchdogs_handler->scheduled_watchdogs)) {
             break;
         }
 
-        // Get the next task to check
-        if (min_heap_api_remove(&tasks_handler->scheduled_tasks, 0U, &next_task) != MIN_HEAP_RC_OK) {
-            return TASKS_RC_ERROR;
+        // Get the next watchdog to check
+        if (min_heap_api_remove(&watchdogs_handler->scheduled_watchdogs, 0U, &next_watchdog) != MIN_HEAP_RC_OK) {
+            return WATCHDOG_RC_ERROR;
         }
     }
 
-    tasks_handler->prev_tick = current_tick;
+    watchdogs_handler->prev_tick = current_tick;
 
-    return TASKS_RC_OK;
+    return WATCHDOG_RC_OK;
 }
 
-enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
-        return TASKS_RC_NULL_POINTER;
+enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watchdog, uint32_t timeout, watchdog_timeout_callback_t callback) {
+    if (watchdog == NULL || callback == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
     }
-    if (tasks_handler->prev_tick > current_tick) {
-        return TASKS_RC_TEMPORAL_DISCONTINUITY;
+    if (watchdog->is_initialized == true) {
+        return WATCHDOG_RC_ERROR;
     }
-    if (task_id >= tasks_handler->task_num) {
-        return TASKS_RC_INVALID_ID;
+    if (timeout == 0) {
+        return WATCHDOG_RC_ERROR;
     }
 
-    tasks_handler->task_list[task_id].task_state = TASKS_STATE_ENABLED;
+    watchdog->watchdog_state = WATCHDOG_STATE_NOT_RUNNING;
+    watchdog->watchdog_callback = callback;
+    watchdog->timeout = timeout;
+    watchdog->next_trigger = 0;
+    watchdog->last_update = 0;
 
-    tasks_handler->prev_tick = current_tick;
+    watchdog->is_initialized = true;
 
-    return prv_handle_task_transition(tasks_handler, task_id, current_tick);
+    return WATCHDOG_RC_OK;
 }
 
-enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
-        return TASKS_RC_NULL_POINTER;
+enum WatchdogReturnCode watchdogs_api_watchdog_start(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick) {
+    if (watchdogs_handler == NULL || watchdog == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
     }
-    if (tasks_handler->prev_tick > current_tick) {
-        return TASKS_RC_TEMPORAL_DISCONTINUITY;
+    if (watchdogs_handler->prev_tick > current_tick) {
+        return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
     }
-    if (task_id >= tasks_handler->task_num) {
-        return TASKS_RC_INVALID_ID;
+    if (watchdog->is_initialized == false) {
+        return WATCHDOG_RC_UNINITIALIZED;
+    }
+    if (watchdog->watchdog_state == WATCHDOG_STATE_RUNNING) {
+        return WATCHDOG_RC_BUSY;
+    }
+    if (watchdog->watchdog_state == WATCHDOG_STATE_TIMED_OUT) {
+        return WATCHDOG_RC_TIMED_OUT;
     }
 
-    tasks_handler->task_list[task_id].task_state = TASKS_STATE_PAUSED;
+    if (watchdog->watchdog_state == WATCHDOG_STATE_PAUSED) {
+        watchdog->next_trigger = current_tick + (watchdog->next_trigger - watchdog->last_update);
+    } else {
+        watchdog->next_trigger = current_tick + watchdog->timeout;
+    }
 
-    tasks_handler->prev_tick = current_tick;
+    if (min_heap_api_insert(&watchdogs_handler->scheduled_watchdogs, &watchdog) != MIN_HEAP_RC_OK) {
+        watchdog->watchdog_state = WATCHDOG_STATE_NOT_RUNNING;
+        return WATCHDOG_RC_ERROR;
+    }
 
-    return prv_handle_task_transition(tasks_handler, task_id, current_tick);
+    watchdog->watchdog_state = WATCHDOG_STATE_RUNNING;
+
+    return WATCHDOG_RC_OK;
 }
 
-enum TasksReturnCode tasks_api_disable_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
-        return TASKS_RC_NULL_POINTER;
+enum WatchdogReturnCode watchdogs_api_watchdog_stop(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog) {
+
+    if (watchdogs_handler == NULL || watchdog == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
     }
-    if (tasks_handler->prev_tick > current_tick) {
-        return TASKS_RC_TEMPORAL_DISCONTINUITY;
+    if (watchdog->is_initialized == false) {
+        return WATCHDOG_RC_UNINITIALIZED;
     }
-    if (task_id >= tasks_handler->task_num) {
-        return TASKS_RC_INVALID_ID;
+    if (watchdog->watchdog_state == WATCHDOG_STATE_NOT_RUNNING) {
+        return WATCHDOG_RC_NOT_RUNNING;
+    }
+    if (watchdog->watchdog_state == WATCHDOG_STATE_TIMED_OUT) {
+        return WATCHDOG_RC_TIMED_OUT;
     }
 
-    tasks_handler->task_list[task_id].task_state = TASKS_STATE_DISABLED;
+    if (watchdog->watchdog_state == WATCHDOG_STATE_PAUSED) {
+        watchdog->watchdog_state = WATCHDOG_STATE_NOT_RUNNING;
+        return WATCHDOG_RC_OK;
+    }
 
-    tasks_handler->prev_tick = current_tick;
+    enum WatchdogReturnCode unregister_result = prv_watchdog_unregister(watchdogs_handler, watchdog);
+    if (unregister_result != WATCHDOG_RC_OK) {
 
-    return prv_handle_task_transition(tasks_handler, task_id, current_tick);
+        return unregister_result;
+    }
+
+    return WATCHDOG_RC_OK;
 }
 
-enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, const uint8_t task_id, uint16_t new_interval, uint16_t new_start, bool one_shot, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
-        return TASKS_RC_NULL_POINTER;
+enum WatchdogReturnCode watchdogs_api_watchdog_pause(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick) {
+
+    if (watchdogs_handler == NULL || watchdog == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
     }
-    if (tasks_handler->prev_tick > current_tick) {
-        return TASKS_RC_TEMPORAL_DISCONTINUITY;
+    if (watchdogs_handler->prev_tick > current_tick) {
+        return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
     }
-    if (task_id >= tasks_handler->task_num) {
-        return TASKS_RC_INVALID_ID;
+    if (watchdog->is_initialized == false) {
+        return WATCHDOG_RC_UNINITIALIZED;
     }
-
-    struct Task *task = &tasks_handler->task_list[task_id];
-
-    task->task_interval = new_interval;
-    task->task_start = new_start;
-    task->one_shot = one_shot;
-
-    // Disable and reenable the task to update the heap with the new information
-    enum TaskState original_state = task->task_state;
-
-    if (original_state != TASKS_STATE_ENABLED) {
-        return TASKS_RC_OK;
+    if (watchdog->watchdog_state == WATCHDOG_STATE_TIMED_OUT) {
+        return WATCHDOG_RC_TIMED_OUT;
+    }
+    if (watchdog->watchdog_state != WATCHDOG_STATE_RUNNING) {
+        return WATCHDOG_RC_NOT_RUNNING;
     }
 
-    task->task_state = TASKS_STATE_DISABLED;
-    enum TasksReturnCode rc = prv_handle_task_transition(tasks_handler, task_id, current_tick);
-    if (rc != TASKS_RC_OK) {
-        return rc;
+    if (prv_watchdog_unregister(watchdogs_handler, watchdog) != WATCHDOG_RC_OK) {
+        return WATCHDOG_RC_ERROR;
     }
-    task->task_state = original_state;
 
-    tasks_handler->prev_tick = current_tick;
+    watchdog->watchdog_state = WATCHDOG_STATE_PAUSED;
 
-    return prv_handle_task_transition(tasks_handler, task_id, current_tick);
+    watchdog->last_update = current_tick;
+
+    return WATCHDOG_RC_OK;
 }
 
-enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint8_t task_id, struct Task *task) {
-    if (tasks_handler == NULL || task == NULL) {
-        return TASKS_RC_NULL_POINTER;
+enum WatchdogReturnCode watchdogs_api_watchdog_restart(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick) {
+
+    if (watchdogs_handler == NULL || watchdog == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
+    }
+    if (watchdog->is_initialized == false) {
+        return WATCHDOG_RC_UNINITIALIZED;
+    }
+    if (watchdogs_handler->prev_tick > current_tick) {
+        return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
     }
 
-    if (task_id >= tasks_handler->task_num) {
-        return TASKS_RC_INVALID_ID;
+    if (watchdog->watchdog_state == WATCHDOG_STATE_RUNNING) {
+        if (prv_watchdog_unregister(watchdogs_handler, watchdog) != WATCHDOG_RC_OK) {
+            return WATCHDOG_RC_ERROR;
+        }
     }
 
-    *task = tasks_handler->task_list[task_id];
+    watchdog->last_update = current_tick;
+    watchdog->next_trigger = current_tick + watchdog->timeout;
 
-    return TASKS_RC_OK;
+    watchdog->watchdog_state = WATCHDOG_STATE_RUNNING;
+
+    if (min_heap_api_insert(&watchdogs_handler->scheduled_watchdogs, &watchdog) != MIN_HEAP_RC_OK) {
+        watchdog->watchdog_state = WATCHDOG_STATE_NOT_RUNNING;
+        return WATCHDOG_RC_ERROR;
+    }
+
+    return WATCHDOG_RC_OK;
 }
 
-enum TasksReturnCode tasks_api_enable_module(struct TasksHandler *tasks_handler, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
-        return TASKS_RC_NULL_POINTER;
+enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick) {
+
+    if (watchdogs_handler == NULL || watchdog == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
     }
-    if (current_tick < tasks_handler->prev_tick) {
-        return TASKS_RC_TEMPORAL_DISCONTINUITY;
+    if (watchdog->is_initialized == false) {
+        return WATCHDOG_RC_UNINITIALIZED;
+    }
+    if (watchdogs_handler->prev_tick > current_tick) {
+        return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
+    }
+    if (watchdog->watchdog_state == WATCHDOG_STATE_TIMED_OUT) {
+        return WATCHDOG_RC_TIMED_OUT;
+    }
+    if (watchdog->watchdog_state != WATCHDOG_STATE_RUNNING) {
+        return WATCHDOG_RC_NOT_RUNNING;
     }
 
-    for (int i = 0; i < tasks_handler->task_num; i++) {
-        tasks_handler->task_list[i].next_trigger += (current_tick - tasks_handler->prev_tick);
+    if (prv_watchdog_unregister(watchdogs_handler, watchdog) != WATCHDOG_RC_OK) {
+        return WATCHDOG_RC_ERROR;
     }
 
-    tasks_handler->task_module_enabled = true;
+    watchdog->next_trigger = current_tick + watchdog->timeout;
 
-    tasks_handler->prev_tick = current_tick;
+    watchdog->watchdog_state = WATCHDOG_STATE_RUNNING;
 
-    return TASKS_RC_OK;
+    if (min_heap_api_insert(&watchdogs_handler->scheduled_watchdogs, &watchdog) != MIN_HEAP_RC_OK) {
+        watchdog->watchdog_state = WATCHDOG_STATE_NOT_RUNNING;
+        return WATCHDOG_RC_ERROR;
+    }
+
+    return WATCHDOG_RC_OK;
 }
 
-enum TasksReturnCode tasks_api_disable_module(struct TasksHandler *tasks_handler, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
-        return TASKS_RC_NULL_POINTER;
+enum WatchdogReturnCode watchdogs_api_watchdog_timeout(struct WatchdogHandler *watchdogs_handler, struct Watchdog *watchdog) {
+
+    if (watchdogs_handler == NULL || watchdog == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
     }
-    if (current_tick < tasks_handler->prev_tick) {
-        return TASKS_RC_TEMPORAL_DISCONTINUITY;
+    if (watchdog->is_initialized == false) {
+        return WATCHDOG_RC_UNINITIALIZED;
+    }
+    if (watchdog->watchdog_state != WATCHDOG_STATE_RUNNING) {
+        return WATCHDOG_RC_NOT_RUNNING;
     }
 
-    tasks_handler->prev_tick = current_tick;
+    long find_result = min_heap_api_find(&watchdogs_handler->scheduled_watchdogs, &watchdog);
+    if (find_result < 0) {
+        return WATCHDOG_RC_ERROR;
+    }
+    if (min_heap_api_remove(&watchdogs_handler->scheduled_watchdogs, find_result, NULL) != MIN_HEAP_RC_OK) {
+        return WATCHDOG_RC_ERROR;
+    }
 
-    tasks_handler->task_module_enabled = false;
+    watchdog->watchdog_state = WATCHDOG_STATE_TIMED_OUT;
 
-    return TASKS_RC_OK;
+    watchdog->watchdog_callback();
+
+    return WATCHDOG_RC_OK;
+}
+
+bool watchdogs_api_watchdog_is_running(struct Watchdog *const watchdog) {
+    if (watchdog == NULL) {
+        return false;
+    }
+
+    return (watchdog->watchdog_state == WATCHDOG_STATE_RUNNING);
+}
+
+bool watchdogs_api_watchdog_is_timed_out(struct Watchdog *const watchdog) {
+    if (watchdog == NULL) {
+        return false;
+    }
+
+    return (watchdog->watchdog_state == WATCHDOG_STATE_TIMED_OUT);
+}
+
+enum WatchdogReturnCode watchdogs_api_enable_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
+    if (watchdogs_handler == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
+    }
+    if (watchdogs_handler->prev_tick > current_tick) {
+        return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
+    }
+
+    watchdogs_handler->watchdog_module_enabled = true;
+
+    for (int i = 0; i < watchdogs_handler->scheduled_watchdogs.size; ++i) {
+        struct Watchdog *watchdog = *(struct Watchdog **)((uint8_t *)watchdogs_handler->scheduled_watchdogs.data + watchdogs_handler->scheduled_watchdogs.data_size * i);
+        watchdog->next_trigger = current_tick + (watchdog->next_trigger - watchdogs_handler->prev_tick);
+    }
+
+    return WATCHDOG_RC_OK;
+}
+
+enum WatchdogReturnCode watchdogs_api_disable_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
+    if (watchdogs_handler == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
+    }
+    if (watchdogs_handler->prev_tick > current_tick) {
+        return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
+    }
+
+    watchdogs_handler->watchdog_module_enabled = false;
+
+    watchdogs_handler->prev_tick = current_tick;
+
+    return WATCHDOG_RC_OK;
 }
