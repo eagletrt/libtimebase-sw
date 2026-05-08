@@ -204,7 +204,6 @@ enum WatchdogReturnCode watchdogs_api_watchdog_stop(struct WatchdogHandler *cons
 
     enum WatchdogReturnCode unregister_result = prv_watchdog_unregister(watchdogs_handler, watchdog);
     if (unregister_result != WATCHDOG_RC_OK) {
-
         return unregister_result;
     }
 
@@ -229,8 +228,9 @@ enum WatchdogReturnCode watchdogs_api_watchdog_pause(struct WatchdogHandler *con
         return WATCHDOG_RC_NOT_RUNNING;
     }
 
-    if (prv_watchdog_unregister(watchdogs_handler, watchdog) != WATCHDOG_RC_OK) {
-        return WATCHDOG_RC_ERROR;
+    enum WatchdogReturnCode unregister_result = prv_watchdog_unregister(watchdogs_handler, watchdog);
+    if (unregister_result != WATCHDOG_RC_OK) {
+        return unregister_result;
     }
 
     watchdog->watchdog_state = WATCHDOG_STATE_PAUSED;
