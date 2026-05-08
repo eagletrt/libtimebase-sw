@@ -42,6 +42,7 @@ jobs:
             printf "[env:latest_stable]\n" > platformio.ini
             printf "platform = native\n" >> platformio.ini
             printf "lib_deps = Unity, ./\n" >> platformio.ini
+            printf "build_flags = \n\t-Itest/include" >> platformio.ini
             echo "Created platformio.ini"
           fi
 
