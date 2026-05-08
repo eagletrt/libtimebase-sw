@@ -8,6 +8,7 @@
 
 #include "tasks.h"
 
+// Should this function have null guards??
 int8_t prv_task_compare(void *a, void *b) {
     const struct Task *const f = *(struct Task **)a;
     const struct Task *const s = *(struct Task **)b;
@@ -90,7 +91,7 @@ EAGLETRT_STATIC enum TasksReturnCode prv_tasks_update_heap(struct TasksHandler *
 }
 enum TasksReturnCode tasks_init(struct TasksHandler *tasks_handler, TaskList t_list, uint8_t num_tasks, uint32_t current_tick) {
 
-    if (tasks_handler == NULL) {
+    if (tasks_handler == NULL || t_list == NULL) {
         return TASKS_RC_NULL_POINTER;
     }
 
