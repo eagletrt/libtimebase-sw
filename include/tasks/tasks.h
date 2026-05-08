@@ -85,7 +85,6 @@ enum TasksReturnCode {
     TASKS_RC_NULL_POINTER,           /*!< A null pointer was passed as argument */
     TASKS_RC_INVALID_LIST,           /*!< The given list of tasks is not valid, either because it contains a null task or because the number of tasks is 0 or greater than MAX_TASKS*/
     TASKS_RC_ERROR                   /*!< An error occurred during the operation, for example when updating the heap */
-
 };
 
 #endif // TASKS_H

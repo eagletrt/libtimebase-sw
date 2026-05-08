@@ -8,8 +8,12 @@
 
 #include "tasks.h"
 
-// Should this function have null guards??
-// I am not sure
+/*!
+ * \brief Compares two tasks based on their next trigger times
+ * \param a pointer to the first task
+ * \param b pointer to the second task
+ * \return -1 if the first task should be scheduled before the second, 1 if it should be scheduled after, 0 if they are equal
+ */
 int8_t prv_task_compare(void *a, void *b) {
     const struct Task *const f = *(struct Task **)a;
     const struct Task *const s = *(struct Task **)b;
@@ -110,6 +114,13 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
 
 /*!
  * \brief updates all tasks in the heap
+ *
+ * \param tasks_handler the handler structure
+ * \param current_tick the current tick
+ * 
+ * \retval TASKS_RC_NULL_POINTER the task handler pointer is null
+ * \retval TASKS_RC_ERROR problems were encountered when accessing the heap
+ * \retval TASKS_RC_OK the function executed correctly
  */
 EAGLETRT_STATIC enum TasksReturnCode prv_tasks_update_heap(struct TasksHandler *tasks_handler, uint32_t current_tick) {
     if (tasks_handler == NULL) {
