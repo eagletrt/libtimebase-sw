@@ -50,6 +50,7 @@ jobs:
       - name: Run Example
         run: |
           pio ci -l . --exclude=src/test --exclude=src/examples -O "framework=stm32cube" examples/timebase-example.c -b nucleo_h723zg
+          pio ci -l . --exclude=src/test --exclude=src/examples -O "framework=stm32cube" examples/watchdog-example.c -b nucleo_h723zg
 
   check:
     name: Static Code Analysis

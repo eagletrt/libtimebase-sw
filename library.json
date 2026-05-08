@@ -37,6 +37,10 @@
     {
       "name": "Timebase Example",
       "files": "examples/timebase-example.c"
+    },
+    {
+      "name": "Watchdog Example",
+      "files": "examples/watchdog-example.c"
     }
   ],
   "export": {
