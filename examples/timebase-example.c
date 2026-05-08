@@ -1,5 +1,5 @@
 /*!
- * \file timebase-basic.c
+ * \file timebase-example.c
  * \date 2026-05-07
  * \authors Alessandro Giustina [giustinalessandro@gmail.com]
  *

@@ -444,6 +444,309 @@ void test_tasks_routine_with_valid_parameters_executes_one_shot_after_reenabled(
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, task_function_3_fake.call_count, "One-shot task function should have been called again after being reenabled and reaching timeout");
 }
 
+void test_tasks_enable_with_null_handler_returns_error(void) {
+    enum TasksReturnCode rc;
+
+    rc = tasks_enable(NULL, 0U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
+void test_tasks_enable_with_invalid_id_returns_error(void) {
+    enum TasksReturnCode rc;
+
+    rc = tasks_enable(&tasks_handler, MAX_TASKS + 1U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
+}
+
+void test_tasks_enable_with_valid_id_enables_task(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_enable(&tasks_handler, 1U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[1], "Task state should be updated to ENABLED");
+    struct Task *task_ptr = &tasks_handler.task_list[1];
+    if (min_heap_api_find(&tasks_handler.scheduled_tasks, &task_ptr) < 0) {
+        TEST_FAIL_MESSAGE("Enabled task should be in the scheduled tasks heap");
+    }
+}
+
+void test_tasks_enable_after_pause_resumes_task_with_correct_trigger_time(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    tasks_handler.actual_state[1] = TASKS_STATE_PAUSED;
+    tasks_handler.task_list[1].next_trigger = 20U;
+    tasks_handler.task_list[1].last_update = 10U;
+
+    rc = tasks_enable(&tasks_handler, 1U, 15U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    struct Task *next_task;
+    if (min_heap_api_remove(&tasks_handler.scheduled_tasks, 0U, &next_task) == MIN_HEAP_RC_OK) {
+        TEST_ASSERT_EQUAL_UINT32_MESSAGE(25U, next_task->next_trigger, "Next trigger time should be updated according to the time the task was paused");
+    } else {
+        TEST_FAIL_MESSAGE("Failed to remove task from heap");
+    }
+}
+
+void test_tasks_pause_with_null_handler_returns_error(void) {
+    enum TasksReturnCode rc;
+
+    rc = tasks_pause(NULL, 0U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
+void test_tasks_pause_with_invalid_id_returns_error(void) {
+    enum TasksReturnCode rc;
+
+    rc = tasks_pause(&tasks_handler, MAX_TASKS + 1U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
+}
+
+void test_tasks_pause_with_valid_id_pauses_task(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_pause(&tasks_handler, 0U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_PAUSED, tasks_handler.actual_state[0], "Task state should be updated to PAUSED");
+    struct Task *task_ptr = &tasks_handler.task_list[0];
+    if (min_heap_api_find(&tasks_handler.scheduled_tasks, &task_ptr) >= 0) {
+        TEST_FAIL_MESSAGE("Paused task should NOT be in the scheduled tasks heap");
+    }
+}
+
+void test_tasks_disable_with_null_handler_returns_error(void) {
+    enum TasksReturnCode rc;
+
+    rc = tasks_disable(NULL, 0U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
+void test_tasks_disable_with_invalid_id_returns_error(void) {
+    enum TasksReturnCode rc;
+
+    rc = tasks_disable(&tasks_handler, MAX_TASKS + 1U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
+}
+
+void test_tasks_disable_with_valid_id_disables_task(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_disable(&tasks_handler, 0U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[0], "Task state should be updated to DISABLED");
+    struct Task *task_ptr = &tasks_handler.task_list[0];
+    if (min_heap_api_find(&tasks_handler.scheduled_tasks, &task_ptr) >= 0) {
+        TEST_FAIL_MESSAGE("Disabled task should NOT be in the scheduled tasks heap");
+    }
+}
+
+void test_tasks_update_task_with_null_handler_returns_error(void) {
+    enum TasksReturnCode rc;
+
+    rc = tasks_update_task(NULL, 0U, 10U, 0U, false, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
+void test_tasks_update_task_with_invalid_id_returns_error(void) {
+    enum TasksReturnCode rc;
+
+    rc = tasks_update_task(&tasks_handler, MAX_TASKS + 1U, 10U, 0U, false, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
+}
+
+void test_tasks_update_task_with_valid_id_updates_task(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 5U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_update_task(&tasks_handler, 0U, 20U, 10U, true, 10U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(20U, tasks_handler.task_list[0].task_interval, "Task interval should be updated");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, tasks_handler.task_list[0].task_start, "Task start should be updated");
+    TEST_ASSERT_TRUE_MESSAGE(tasks_handler.task_list[0].one_shot, "Task one_shot flag should be updated to true");
+
+    // Check if the task is updated in the heap
+    struct Task *next_task;
+    if (min_heap_api_remove(&tasks_handler.scheduled_tasks, 0U, &next_task) == MIN_HEAP_RC_OK) {
+        TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, next_task->task_id, "Updated task should be in the heap");
+        TEST_ASSERT_EQUAL_UINT32_MESSAGE(20U, next_task->task_interval, "Task interval in heap should be updated");
+        TEST_ASSERT_EQUAL_UINT32_MESSAGE(10U, next_task->task_start, "Task start in heap should be updated");
+        TEST_ASSERT_TRUE_MESSAGE(next_task->one_shot, "Task one_shot flag in heap should be updated to true");
+        TEST_ASSERT_EQUAL_UINT32_MESSAGE(20U, next_task->next_trigger, "Next trigger time should be updated according to new start and interval");
+    } else {
+        TEST_FAIL_MESSAGE("Failed to remove task from heap");
+    }
+}
+
+void test_tasks_update_task_with_valid_id_and_disabled_task_updates_task(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_update_task(&tasks_handler, 1U, 30U, 10U, true, 10U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(30U, tasks_handler.task_list[1].task_interval, "Task interval should be updated");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, tasks_handler.task_list[1].task_start, "Task start should be updated");
+    TEST_ASSERT_TRUE_MESSAGE(tasks_handler.task_list[1].one_shot, "Task one_shot flag should be updated to true");
+
+    // Check that the task is not in the heap since it is disabled
+    struct Task *task_ptr = &tasks_handler.task_list[1];
+    if (min_heap_api_find(&tasks_handler.scheduled_tasks, &task_ptr) >= 0) {
+        TEST_FAIL_MESSAGE("Disabled task should NOT be in the scheduled tasks heap");
+    }
+}
+
+void test_tasks_update_task_with_valid_id_and_paused_task_updates_task(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    tasks_pause(&tasks_handler, 0U, 0U);
+
+    rc = tasks_update_task(&tasks_handler, 0U, 20U, 10U, true, 10U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(20U, tasks_handler.task_list[0].task_interval, "Task interval should be updated");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, tasks_handler.task_list[0].task_start, "Task start should be updated");
+    TEST_ASSERT_TRUE_MESSAGE(tasks_handler.task_list[0].one_shot, "Task one_shot flag should be updated to true");
+
+    // Check that the task is not in the heap since it is paused
+    struct Task *task_ptr = &tasks_handler.task_list[0];
+    if (min_heap_api_find(&tasks_handler.scheduled_tasks, &task_ptr) >= 0) {
+        TEST_FAIL_MESSAGE("Paused task should NOT be in the scheduled tasks heap");
+    }
+}
+
+void test_tasks_get_task_with_null_handler_returns_error(void) {
+    enum TasksReturnCode rc;
+    struct Task task;
+
+    rc = tasks_get_task(NULL, 0U, &task);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
+void test_tasks_get_task_with_invalid_id_returns_error(void) {
+    enum TasksReturnCode rc;
+    struct Task task;
+
+    rc = tasks_get_task(&tasks_handler, MAX_TASKS + 1U, &task);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
+}
+
+void test_tasks_get_task_with_valid_id_returns_ok_and_copies_task(void) {
+    enum TasksReturnCode rc;
+    struct Task task;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 5U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_get_task(&tasks_handler, 0U, &task);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, task.task_id, "Task ID should be copied correctly");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, task.task_state, "Task state should be copied correctly");
+    TEST_ASSERT_FALSE_MESSAGE(task.one_shot, "Task one_shot flag should be copied correctly");
+    TEST_ASSERT_EQUAL_PTR_MESSAGE(task_function_1, task.task_function, "Task function pointer should be copied correctly");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, task.task_interval, "Task interval should be copied correctly");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(5U, task.task_start, "Task start should be copied correctly");
+}
+
+// I don't see the point of testing the setting of the status
+
+void test_tasks_module_enable_with_null_handler_returns_error(void) {
+    enum TasksReturnCode rc;
+
+    rc = tasks_module_enable(NULL);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
+void test_tasks_module_disable_with_null_handler_returns_error(void) {
+    enum TasksReturnCode rc;
+
+    rc = tasks_module_disable(NULL);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
 void setUp(void) {
     memset(&tasks_handler, 0, sizeof(tasks_handler));
     tasks_init(&tasks_handler, t_list, TASK_COUNT, 0U);
@@ -496,6 +799,34 @@ int main(void) {
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_tasks_after_interval);
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_one_shot_tasks_only_once);
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_one_shot_after_reenabled);
+
+    // TASK CONTROL TESTS
+
+    RUN_TEST(test_tasks_enable_with_null_handler_returns_error);
+    RUN_TEST(test_tasks_enable_with_invalid_id_returns_error);
+    RUN_TEST(test_tasks_enable_with_valid_id_enables_task);
+    RUN_TEST(test_tasks_enable_after_pause_resumes_task_with_correct_trigger_time);
+
+    RUN_TEST(test_tasks_pause_with_null_handler_returns_error);
+    RUN_TEST(test_tasks_pause_with_invalid_id_returns_error);
+    RUN_TEST(test_tasks_pause_with_valid_id_pauses_task);
+
+    RUN_TEST(test_tasks_disable_with_null_handler_returns_error);
+    RUN_TEST(test_tasks_disable_with_invalid_id_returns_error);
+    RUN_TEST(test_tasks_disable_with_valid_id_disables_task);
+
+    RUN_TEST(test_tasks_update_task_with_null_handler_returns_error);
+    RUN_TEST(test_tasks_update_task_with_invalid_id_returns_error);
+    RUN_TEST(test_tasks_update_task_with_valid_id_updates_task);
+    RUN_TEST(test_tasks_update_task_with_valid_id_and_disabled_task_updates_task);
+    RUN_TEST(test_tasks_update_task_with_valid_id_and_paused_task_updates_task);
+
+    RUN_TEST(test_tasks_get_task_with_null_handler_returns_error);
+    RUN_TEST(test_tasks_get_task_with_invalid_id_returns_error);
+    RUN_TEST(test_tasks_get_task_with_valid_id_returns_ok_and_copies_task);
+
+    RUN_TEST(test_tasks_module_enable_with_null_handler_returns_error);
+    RUN_TEST(test_tasks_module_disable_with_null_handler_returns_error);
 
     return UNITY_END();
 }
