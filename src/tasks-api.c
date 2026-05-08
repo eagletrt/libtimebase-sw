@@ -29,7 +29,15 @@ int8_t prv_task_compare(void *a, void *b) {
     return 1;
 }
 
-static enum TasksReturnCode prv_handle_task_transition(struct TasksHandler *tasks_handler, int8_t task_id, uint32_t tick) {
+EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHandler *tasks_handler, int8_t task_id, uint32_t tick) {
+
+    if (tasks_handler == NULL) {
+        return TASKS_RC_NULL_POINTER;
+    }
+    if (task_id >= tasks_handler->task_num) {
+        return TASKS_RC_INVALID_ID;
+    }
+
     enum TaskState from = tasks_handler->actual_state[task_id];
     enum TaskState to = tasks_handler->task_list[task_id].task_state;
 
@@ -41,7 +49,7 @@ static enum TasksReturnCode prv_handle_task_transition(struct TasksHandler *task
 
     // Leaving ENABLED
     if (from == TASKS_STATE_ENABLED) {
-        long idx = min_heap_api_find(&tasks_handler->scheduled_tasks, task);
+        long idx = min_heap_api_find(&tasks_handler->scheduled_tasks, &task);
         if (idx < 0) {
             return TASKS_RC_ERROR;
         }
@@ -56,9 +64,9 @@ static enum TasksReturnCode prv_handle_task_transition(struct TasksHandler *task
         if (from == TASKS_STATE_PAUSED) {
             task->next_trigger = tick + (task->next_trigger - task->last_update);
         } else {
-            task->next_trigger = tick;
+            task->next_trigger = tick + task->task_start;
         }
-        if (min_heap_api_insert(&tasks_handler->scheduled_tasks, task) != MIN_HEAP_RC_OK) {
+        if (min_heap_api_insert(&tasks_handler->scheduled_tasks, &task) != MIN_HEAP_RC_OK) {
             return TASKS_RC_ERROR;
         }
     }
@@ -151,7 +159,7 @@ enum TasksReturnCode tasks_routine(struct TasksHandler *task_handler, uint32_t c
 
     for (;;) {
         if (next_task->next_trigger > current_tick) {
-            min_heap_api_insert(&task_handler->scheduled_tasks, next_task);
+            min_heap_api_insert(&task_handler->scheduled_tasks, &next_task);
             break;
         }
 
@@ -166,9 +174,13 @@ enum TasksReturnCode tasks_routine(struct TasksHandler *task_handler, uint32_t c
             next_task->next_trigger += next_task->task_interval;
 
             // Reinsert the task with the updated trigger time
-            if (min_heap_api_insert(&task_handler->scheduled_tasks, next_task) != MIN_HEAP_RC_OK) {
+            if (min_heap_api_insert(&task_handler->scheduled_tasks, &next_task) != MIN_HEAP_RC_OK) {
                 return TASKS_RC_ERROR;
             }
+        } else {
+            // For one-shot tasks, just update the state to disabled and don't reinsert it into the heap
+            next_task->task_state = TASKS_STATE_DISABLED;
+            task_handler->actual_state[next_task->task_id] = TASKS_STATE_DISABLED;
         }
 
         if (min_heap_api_is_empty(&task_handler->scheduled_tasks)) {
@@ -176,7 +188,7 @@ enum TasksReturnCode tasks_routine(struct TasksHandler *task_handler, uint32_t c
         }
 
         // Get the next task to check
-        if (min_heap_api_remove(&task_handler->scheduled_tasks, 0U, next_task) != MIN_HEAP_RC_OK) {
+        if (min_heap_api_remove(&task_handler->scheduled_tasks, 0U, &next_task) != MIN_HEAP_RC_OK) {
             return TASKS_RC_ERROR;
         }
     }
@@ -243,6 +255,11 @@ enum TasksReturnCode tasks_update_task(struct TasksHandler *tasks_handler, const
 
     // Disable and reenable the task to update the heap with the new information
     enum TaskState original_state = task->task_state;
+
+    if (original_state != TASKS_STATE_ENABLED) {
+        return TASKS_RC_OK;
+    }
+
     task->task_state = TASKS_STATE_DISABLED;
     enum TasksReturnCode rc = prv_handle_task_transition(tasks_handler, task_id, current_tick);
     if (rc != TASKS_RC_OK) {
@@ -253,8 +270,8 @@ enum TasksReturnCode tasks_update_task(struct TasksHandler *tasks_handler, const
     return prv_handle_task_transition(tasks_handler, task_id, current_tick);
 }
 
-enum TasksReturnCode tasks_get_task(struct TasksHandler *tasks_handler, const uint8_t task_id, struct Task *out) {
-    if (tasks_handler == NULL || out == NULL) {
+enum TasksReturnCode tasks_get_task(struct TasksHandler *tasks_handler, uint8_t task_id, struct Task *task) {
+    if (tasks_handler == NULL || task == NULL) {
         return TASKS_RC_NULL_POINTER;
     }
 
@@ -262,7 +279,7 @@ enum TasksReturnCode tasks_get_task(struct TasksHandler *tasks_handler, const ui
         return TASKS_RC_INVALID_ID;
     }
 
-    *out = tasks_handler->task_list[task_id];
+    *task = tasks_handler->task_list[task_id];
 
     return TASKS_RC_OK;
 }

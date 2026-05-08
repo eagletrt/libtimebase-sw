@@ -29,7 +29,9 @@
   "platforms": "*",
   "headers": [
     "include/timebase/timebase-api.h",
-    "include/timebase/timebase.h"
+    "include/timebase/timebase.h",
+    "include/tasks/tasks-api.h",
+    "include/tasks/tasks.h"
   ],
   "examples": [
     {
