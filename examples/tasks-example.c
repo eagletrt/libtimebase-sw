@@ -73,10 +73,30 @@ void init_tasks_module(struct TasksHandler *task_handler) {
         }
     };
 
-    tasks_init(task_handler, t_l, TASK_COUNT, 0U);
+    enum TasksReturnCode rc = (task_handler, t_l, TASK_COUNT, 0U);
+
+    if (rc == TASKS_RC_OK) {
+        printf("The module initialized correctly!");
+    }
 }
 
 int main(void) {
+
+    /*
+     * Initialize the task module with some tasks
+     */
+
+    struct TasksHandler tasks_handler;
+
+    init_tasks_module(&tasks_handler);
+
+    /*
+     * Go trough some ticks to see initialized behaviour.
+     * 
+     * At tick 0 we should see task 1 fire
+     * At tick 5 again task 1 should fire as the 
+     * 
+     */
 
     return 0;
 }

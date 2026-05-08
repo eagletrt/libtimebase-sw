@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# Get filename input
-read -p "Enter filename (without extension): " filename
+filename="$1"
+
+if [ ! -f "examples/${filename}.c" ]; then
+    echo "File examples/${filename}.c not found"
+    exit 1
+fi
 
 # Create platformio.ini
 cat > platformio_example.ini << EOF

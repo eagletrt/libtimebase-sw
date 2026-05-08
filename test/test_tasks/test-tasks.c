@@ -385,6 +385,16 @@ void test_tasks_routine_with_module_disabled_returns_disabled(void) {
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_DISABLED, rc, "Expected DISABLED return code");
 }
 
+void test_task_routine_with_past_tick_returns_temporal_discontinuity(void) {
+    enum TasksReturnCode rc;
+
+    tasks_handler.prev_tick = 10U;
+
+    rc = tasks_routine(&tasks_handler, 5U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
+}
+
 void test_tasks_routine_with_valid_parameters_executes_tasks_immediately(void) {
     enum TasksReturnCode rc;
 
@@ -496,6 +506,34 @@ void test_tasks_enable_with_invalid_id_returns_error(void) {
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
 
+void test_tasks_enable_with_past_tick_returns_temporal_discontinuity(void) {
+    enum TasksReturnCode rc;
+
+    tasks_handler.prev_tick = 10U;
+
+    rc = tasks_enable(&tasks_handler, 0U, 5U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
+}
+
+void test_tasks_enable_with_already_enabled_task_returns_ok(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_enable(&tasks_handler, 0U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[0], "Task state should remain ENABLED");
+}
+
 void test_tasks_enable_with_valid_id_enables_task(void) {
     enum TasksReturnCode rc;
 
@@ -561,6 +599,36 @@ void test_tasks_pause_with_invalid_id_returns_error(void) {
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
 
+void test_tasks_pause_with_past_tick_returns_temporal_discontinuity(void) {
+    enum TasksReturnCode rc;
+
+    tasks_handler.prev_tick = 10U;
+
+    rc = tasks_pause(&tasks_handler, 0U, 5U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
+}
+
+void test_tasks_pause_with_already_paused_task_returns_ok(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    tasks_handler.actual_state[0] = TASKS_STATE_PAUSED;
+
+    rc = tasks_pause(&tasks_handler, 0U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_PAUSED, tasks_handler.actual_state[0], "Task state should remain PAUSED");
+}
+
 void test_tasks_pause_with_valid_id_pauses_task(void) {
     enum TasksReturnCode rc;
 
@@ -599,6 +667,34 @@ void test_tasks_disable_with_invalid_id_returns_error(void) {
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
 
+void test_tasks_disable_with_past_tick_returns_temporal_discontinuity(void) {
+    enum TasksReturnCode rc;
+
+    tasks_handler.prev_tick = 10U;
+
+    rc = tasks_disable(&tasks_handler, 0U, 5U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
+}
+
+void test_tasks_disable_with_already_disabled_task_returns_ok(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_disable(&tasks_handler, 0U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[0], "Task state should remain DISABLED");
+}
+
 void test_tasks_disable_with_valid_id_disables_task(void) {
     enum TasksReturnCode rc;
 
@@ -635,6 +731,16 @@ void test_tasks_update_task_with_invalid_id_returns_error(void) {
     rc = tasks_update_task(&tasks_handler, MAX_TASKS + 1U, 10U, 0U, false, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
+}
+
+void test_tasks_update_task_with_past_tick_returns_temporal_discontinuity(void) {
+    enum TasksReturnCode rc;
+
+    tasks_handler.prev_tick = 10U;
+
+    rc = tasks_update_task(&tasks_handler, 0U, 10U, 0U, false, 5U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
 }
 
 void test_tasks_update_task_with_valid_id_updates_task(void) {
@@ -833,6 +939,7 @@ int main(void) {
     RUN_TEST(test_tasks_routine_with_null_handler_returns_error);
     RUN_TEST(test_tasks_routine_with_no_tasks_returns_error);
     RUN_TEST(test_tasks_routine_with_module_disabled_returns_disabled);
+    RUN_TEST(test_task_routine_with_past_tick_returns_temporal_discontinuity);
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_tasks_immediately);
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_tasks_after_interval);
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_one_shot_tasks_only_once);
@@ -842,19 +949,26 @@ int main(void) {
 
     RUN_TEST(test_tasks_enable_with_null_handler_returns_error);
     RUN_TEST(test_tasks_enable_with_invalid_id_returns_error);
+    RUN_TEST(test_tasks_enable_with_past_tick_returns_temporal_discontinuity);
+    RUN_TEST(test_tasks_enable_with_already_enabled_task_returns_ok);
     RUN_TEST(test_tasks_enable_with_valid_id_enables_task);
     RUN_TEST(test_tasks_enable_after_pause_resumes_task_with_correct_trigger_time);
 
     RUN_TEST(test_tasks_pause_with_null_handler_returns_error);
     RUN_TEST(test_tasks_pause_with_invalid_id_returns_error);
+    RUN_TEST(test_tasks_pause_with_past_tick_returns_temporal_discontinuity);
+    RUN_TEST(test_tasks_pause_with_already_paused_task_returns_ok);
     RUN_TEST(test_tasks_pause_with_valid_id_pauses_task);
 
     RUN_TEST(test_tasks_disable_with_null_handler_returns_error);
     RUN_TEST(test_tasks_disable_with_invalid_id_returns_error);
+    RUN_TEST(test_tasks_disable_with_past_tick_returns_temporal_discontinuity);
+    RUN_TEST(test_tasks_disable_with_already_disabled_task_returns_ok);
     RUN_TEST(test_tasks_disable_with_valid_id_disables_task);
 
     RUN_TEST(test_tasks_update_task_with_null_handler_returns_error);
     RUN_TEST(test_tasks_update_task_with_invalid_id_returns_error);
+    RUN_TEST(test_tasks_update_task_with_past_tick_returns_temporal_discontinuity);
     RUN_TEST(test_tasks_update_task_with_valid_id_updates_task);
     RUN_TEST(test_tasks_update_task_with_valid_id_and_disabled_task_updates_task);
     RUN_TEST(test_tasks_update_task_with_valid_id_and_paused_task_updates_task);

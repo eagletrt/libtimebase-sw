@@ -60,6 +60,8 @@ typedef struct Task TaskList[MAX_TASKS];
  * \brief The main structure of the tasks module, containing all the necessary information to manage the tasks
  */
 struct TasksHandler {
+    uint32_t prev_tick; /*!< The last tick with wich the task module was called*/
+
     TaskList task_list; /*!< The list of tasks */
     uint8_t task_num;   /*!< The number of tasks initialized */
 
@@ -75,12 +77,13 @@ struct TasksHandler {
  * \brief The possible task return codes
  */
 enum TasksReturnCode {
-    TASKS_RC_OK,           /*!< The operation was successful */
-    TASKS_RC_DISABLED,     /*!< The tasks module is disabled, no operation can be performed */
-    TASKS_RC_INVALID_ID,   /*!< The given identifier does not exists */
-    TASKS_RC_NULL_POINTER, /*!< A null pointer was passed as argument */
-    TASKS_RC_INVALID_LIST, /*!< The given list of tasks is not valid, either because it contains a null task or because the number of tasks is 0 or greater than MAX_TASKS*/
-    TASKS_RC_ERROR         /*!< An error occurred during the operation, for example when updating the heap */
+    TASKS_RC_OK,                     /*!< The operation was successful */
+    TASKS_RC_DISABLED,               /*!< The tasks module is disabled, no operation can be performed */
+    TASKS_RC_INVALID_ID,             /*!< The given identifier does not exists */
+    TASKS_RC_TEMPORAL_DISCONTINUITY, /*!< The user tried to travel to the past but time must go on*/
+    TASKS_RC_NULL_POINTER,           /*!< A null pointer was passed as argument */
+    TASKS_RC_INVALID_LIST,           /*!< The given list of tasks is not valid, either because it contains a null task or because the number of tasks is 0 or greater than MAX_TASKS*/
+    TASKS_RC_ERROR                   /*!< An error occurred during the operation, for example when updating the heap */
 
 };
 
