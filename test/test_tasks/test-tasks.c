@@ -676,6 +676,48 @@ void test_tasks_pause_with_valid_id_pauses_task(void) {
     }
 }
 
+void test_tasks_pause_one_shot_before_start_resumes_correctly(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .one_shot = true, .task_function = task_function_1, .task_interval = 10U, .task_start = 10U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    tasks_api_pause_task(&tasks_handler, 0U, 5U);
+
+    rc = tasks_api_enable_task(&tasks_handler, 0U, 10U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[0], "Task state should be updated to ENABLED");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(15U, tasks_handler.task_list[0].next_trigger, "Next trigger time should be updated to current tick + remaining time until start");
+    TEST_ASSERT_FALSE_MESSAGE(min_heap_api_is_empty(&tasks_handler.scheduled_tasks), "Scheduled tasks heap should not be empty after resuming task");
+}
+
+void test_tasks_pause_one_shot_after_start_resumes_correctly(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .one_shot = true, .task_function = task_function_1, .task_interval = 10U, .task_start = 10U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    tasks_api_pause_task(&tasks_handler, 0U, 15U);
+
+    rc = tasks_api_enable_task(&tasks_handler, 0U, 20U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[0], "Task state should be updated to ENABLED");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(30U, tasks_handler.task_list[0].next_trigger, "Next trigger time should be updated to current tick + remaining time until next trigger");
+    TEST_ASSERT_FALSE_MESSAGE(min_heap_api_is_empty(&tasks_handler.scheduled_tasks), "Scheduled tasks heap should not be empty after resuming task");
+}
+
 void test_tasks_disable_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
@@ -1058,6 +1100,8 @@ int main(void) {
     RUN_TEST(test_tasks_pause_with_past_tick_returns_temporal_discontinuity);
     RUN_TEST(test_tasks_pause_with_already_paused_task_returns_ok);
     RUN_TEST(test_tasks_pause_with_valid_id_pauses_task);
+    RUN_TEST(test_tasks_pause_one_shot_before_start_resumes_correctly);
+    RUN_TEST(test_tasks_pause_one_shot_after_start_resumes_correctly);
 
     RUN_TEST(test_tasks_disable_with_null_handler_returns_error);
     RUN_TEST(test_tasks_disable_with_invalid_id_returns_error);

@@ -10,7 +10,7 @@
 #ifndef TASKS_API_H
 #define TASKS_API_H
 
-#include <tasks.h>
+#include "tasks.h"
 
 /*!
  * \brief Initialize the tasks module

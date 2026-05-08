@@ -91,9 +91,10 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
 
     // Entering ENABLED
     if (to == TASKS_STATE_ENABLED) {
-        // If task is one-shot it doesn't make sense to take into accout the time when
-        // it was paused
-        if (from == TASKS_STATE_PAUSED && !task->one_shot) {
+        // (task->next_trigger - task->last_update) is the remaining time to the next trigger when the task was paused, if the task was paused and there is still time to wait before the next trigger,
+        // we can just add that remaining time to the current tick to get the new trigger time,
+        // otherwise we can just calculate the trigger time from the start time of the task
+        if (from == TASKS_STATE_PAUSED && (int)(task->next_trigger - task->last_update) > 0) {
             task->next_trigger = tick + (task->next_trigger - task->last_update);
         } else {
             task->next_trigger = tick + task->task_start;
@@ -132,9 +133,6 @@ enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList
     if (num_tasks == 0 || num_tasks > MAX_TASKS) {
         return TASKS_RC_INVALID_LIST;
     }
-
-    // TODO: handle memory leaks do to double init
-    // arena_allocator_api_free(&tasks_handler->arena_handler);
 
     memset(tasks_handler, 0, sizeof(*tasks_handler));
 
