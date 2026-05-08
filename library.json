@@ -37,6 +37,10 @@
     {
       "name": "Timebase Example",
       "files": "examples/timebase-example.c"
+    },
+    {
+      "name": "Tasks Example",
+      "files": "examples/tasks-example.c"
     }
   ],
   "export": {
