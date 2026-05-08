@@ -490,6 +490,31 @@ void test_tasks_routine_with_valid_parameters_executes_one_shot_after_reenabled(
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, task_function_3_fake.call_count, "One-shot task function should have been called again after being reenabled and reaching timeout");
 }
 
+void test_tasks_routine_with_task_interval_set_to_zero_treats_as_one(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 0U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    tasks_handler.task_module_enabled = true;
+
+    rc = tasks_api_routine(&tasks_handler, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_1_fake.call_count, "Task function should have been called once immediately");
+
+    rc = tasks_api_routine(&tasks_handler, 1U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, task_function_1_fake.call_count, "Task function should have been called again after interval treated as 1");
+}
+
 void test_tasks_enable_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
@@ -1017,6 +1042,7 @@ int main(void) {
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_tasks_after_interval);
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_one_shot_tasks_only_once);
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_one_shot_after_reenabled);
+    RUN_TEST(test_tasks_routine_with_task_interval_set_to_zero_treats_as_one);
 
     // TASK CONTROL TESTS
 

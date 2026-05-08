@@ -20,7 +20,6 @@
  * \param num_tasks The number of tasks in the list, must be greater than 0 and less than or equal to MAX_TASKS
  * \param current_tick The current tick count, used to calculate the next trigger time of the tasks
  * 
- * 
  * \retval TASKS_RC_OK The operation was successful
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
  * \retval TASKS_RC_INVALID_LIST The given list of tasks is not valid, either because it contains a null task, because the number of tasks is 0 or greater than MAX_TASKS or because the task IDs are not unique and sequential starting from 0
@@ -38,6 +37,7 @@ enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
  * \retval TASKS_RC_DISABLED The tasks module is disabled, no operation can be performed
  * \retval TASKS_RC_ERROR An error occurred during the operation
+ * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
 enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint32_t current_tick);
 
@@ -52,6 +52,7 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
  * \retval TASKS_RC_INVALID_ID The given identifier does not exist
  * \retval TASKS_RC_ERROR An error occurred during the operation
+ * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
 enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick);
 
@@ -66,6 +67,7 @@ enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, u
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
  * \retval TASKS_RC_INVALID_ID The given identifier does not exist
  * \retval TASKS_RC_ERROR An error occurred during the operation
+ * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
 enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick);
 
@@ -80,6 +82,7 @@ enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, ui
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
  * \retval TASKS_RC_INVALID_ID The given identifier does not exist
  * \retval TASKS_RC_ERROR An error occurred during the operation
+ * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
 enum TasksReturnCode tasks_api_disable_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick);
 
@@ -112,6 +115,7 @@ enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
  * \retval TASKS_RC_INVALID_ID The given identifier does not exist
  * \retval TASKS_RC_ERROR An error occurred during the operation
+ * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
 enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, const uint8_t task_id, uint16_t new_interval, uint16_t new_start, bool one_shot, uint32_t current_tick);
 

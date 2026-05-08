@@ -209,7 +209,7 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
         if (!next_task->one_shot) {
 
             // Update the next trigger time
-            next_task->next_trigger += next_task->task_interval;
+            next_task->next_trigger += EAGLETRT_API_MAX(next_task->task_interval, 1U);
 
             // Reinsert the task with the updated trigger time
             if (min_heap_api_insert(&tasks_handler->scheduled_tasks, &next_task) != MIN_HEAP_RC_OK) {
