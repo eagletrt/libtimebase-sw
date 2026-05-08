@@ -44,36 +44,7 @@ If the module is disabled the tasks will act as if they were frozen, so when the
 
 If a task is updated while it is enabled, it will be rescheduled to run for the first time at `current_tick + new_start`, where `new_start` is the new start time of the task in ticks. If it isn't then the state will not change.
 
-## Structure
-
-The code of the library should be splitted in sources which must be placed inside
-the `src` folder and headers which must be placed inside the `include` folder.
-
-Inside the `example` folder multiple source files should be placed to further
-explain how to use the library and how it works in different scenario.
-
-The library must be tested with the maximum possible code coverage, the source
-code used to run the unit tests should be put inside the `test` folder.
-
-If scripts or other tools are needed for the library they must be put inside
-the `tools` folder.
-
-No other folders should be created besides the ones described before if not
-necessary, to handle complex file structures nested folders can be used.
-
-For more info check the READMEs inside the corresponding folders.
-
-## Git Hooks
-
-To setup git hooks in your local repository you will have to execute the following commands:
-```sh
-cd <library-name>
-```
-
-```sh
-chmod +x hooks/pre-commit
-```
-
-```sh
-git config core.hooksPath hooks/
-```
+## Scripts
+The library includes some scripts to compile and run the tests and examples, these scripts are located in the `scripts` folder and they are named `run-tests.sh` and `run-examples.sh`. These scripts will compile and run all the tests and examples respectively, they can be executed from the root of the project with the following commands:
+ - `./scripts/run-tests.sh`
+ - `./scripts/run-examples.sh <test_name_without_extension>`
