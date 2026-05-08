@@ -23,6 +23,7 @@
  */
 #define MAX_TASKS (20U)
 
+/*! \brief The callback signature of a task*/
 typedef void (*task_definition)(void);
 
 /*!
@@ -38,7 +39,7 @@ enum TaskState {
  * \brief Structure containing all the information that a single task needs to be initialized
  * 
  * \attention At initialization every task must have a unique identifier, the use of an enumerator is greatly encouraged
- * the IDs must be sequential and start from 0.
+ * the IDs must be sequential and start from 0. No task can be paused before initialization.
  * 
  */
 struct Task {
@@ -65,12 +66,12 @@ struct TasksHandler {
     TaskList task_list; /*!< The list of tasks */
     uint8_t task_num;   /*!< The number of tasks initialized */
 
-    enum TaskState actual_state[MAX_TASKS]; /*!< The general state of the task, used to manage the state of the task when it is paused or disabled*/
+    enum TaskState actual_state[MAX_TASKS]; /*!< The actual state of the tasks in the heap, this array reflects it directly*/
 
     struct MinHeapHandler scheduled_tasks;      /*!< The heap containing the scheduled tasks */
     struct ArenaAllocatorHandler arena_handler; /*!< The arena allocator handler used to manage the memory of the scheduled tasks */
 
-    bool task_module_enabled; /*!< Whether the task module is enabled or not, used to disable the module when it is not needed */
+    bool task_module_enabled; /*!< Whether the task module is enabled or not*/
 };
 
 /*!

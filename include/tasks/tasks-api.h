@@ -26,7 +26,7 @@
  * \retval TASKS_RC_INVALID_LIST The given list of tasks is not valid, either because it contains a null task, because the number of tasks is 0 or greater than MAX_TASKS or because the task IDs are not unique and sequential starting from 0
  * \retval TASKS_RC_ERROR An error occurred during the operation
  */
-enum TasksReturnCode tasks_init(struct TasksHandler *tasks_handler, TaskList t_list, uint8_t num_tasks, uint32_t current_tick);
+enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList t_list, uint8_t num_tasks, uint32_t current_tick);
 
 /*!
  * \brief Routine to be called in the main loop to execute the scheduled tasks
@@ -39,7 +39,7 @@ enum TasksReturnCode tasks_init(struct TasksHandler *tasks_handler, TaskList t_l
  * \retval TASKS_RC_DISABLED The tasks module is disabled, no operation can be performed
  * \retval TASKS_RC_ERROR An error occurred during the operation
  */
-enum TasksReturnCode tasks_routine(struct TasksHandler *tasks_handler, uint32_t current_tick);
+enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint32_t current_tick);
 
 /*!
  * \brief Enables a single task
@@ -53,7 +53,7 @@ enum TasksReturnCode tasks_routine(struct TasksHandler *tasks_handler, uint32_t 
  * \retval TASKS_RC_INVALID_ID The given identifier does not exist
  * \retval TASKS_RC_ERROR An error occurred during the operation
  */
-enum TasksReturnCode tasks_enable(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick);
+enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick);
 
 /*!
  * \brief Pauses a single task, the task can be resumed from where it was paused
@@ -67,7 +67,7 @@ enum TasksReturnCode tasks_enable(struct TasksHandler *tasks_handler, uint8_t ta
  * \retval TASKS_RC_INVALID_ID The given identifier does not exist
  * \retval TASKS_RC_ERROR An error occurred during the operation
  */
-enum TasksReturnCode tasks_pause(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick);
+enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick);
 
 /*!
  * \brief Disables a single task, the task will be restarted from the beginning when enabled again
@@ -81,7 +81,7 @@ enum TasksReturnCode tasks_pause(struct TasksHandler *tasks_handler, uint8_t tas
  * \retval TASKS_RC_INVALID_ID The given identifier does not exist
  * \retval TASKS_RC_ERROR An error occurred during the operation
  */
-enum TasksReturnCode tasks_disable(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick);
+enum TasksReturnCode tasks_api_disable_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick);
 
 /*!
  * \brief Get a single task information
@@ -94,7 +94,7 @@ enum TasksReturnCode tasks_disable(struct TasksHandler *tasks_handler, uint8_t t
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
  * \retval TASKS_RC_INVALID_ID The given identifier does not exist
  */
-enum TasksReturnCode tasks_get_task(struct TasksHandler *tasks_handler, uint8_t task_id, struct Task *task);
+enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint8_t task_id, struct Task *task);
 
 /*!
  * \brief Update a single task information, the task will be rescheduled according to the new information
@@ -113,7 +113,7 @@ enum TasksReturnCode tasks_get_task(struct TasksHandler *tasks_handler, uint8_t 
  * \retval TASKS_RC_INVALID_ID The given identifier does not exist
  * \retval TASKS_RC_ERROR An error occurred during the operation
  */
-enum TasksReturnCode tasks_update_task(struct TasksHandler *tasks_handler, const uint8_t task_id, uint16_t new_interval, uint16_t new_start, bool one_shot, uint32_t current_tick);
+enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, const uint8_t task_id, uint16_t new_interval, uint16_t new_start, bool one_shot, uint32_t current_tick);
 
 /*!
  * \brief Enable the tasks module
@@ -125,7 +125,7 @@ enum TasksReturnCode tasks_update_task(struct TasksHandler *tasks_handler, const
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
  * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
-enum TasksReturnCode tasks_module_enable(struct TasksHandler *tasks_handler, uint32_t current_tick);
+enum TasksReturnCode tasks_api_enable_module(struct TasksHandler *tasks_handler, uint32_t current_tick);
 
 /*!
  * \brief Disable the tasks module
@@ -136,6 +136,6 @@ enum TasksReturnCode tasks_module_enable(struct TasksHandler *tasks_handler, uin
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
  * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
-enum TasksReturnCode tasks_module_disable(struct TasksHandler *tasks_handler, uint32_t current_tick);
+enum TasksReturnCode tasks_api_disable_module(struct TasksHandler *tasks_handler, uint32_t current_tick);
 
 #endif // TASKS_API_H

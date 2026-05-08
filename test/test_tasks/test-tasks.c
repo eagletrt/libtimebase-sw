@@ -46,7 +46,7 @@ enum TasksReturnCode prv_tasks_update_heap(struct TasksHandler *tasks_handler, u
 void test_tasks_init_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_init(NULL, t_list, TASK_COUNT, 0U);
+    rc = tasks_api_init(NULL, t_list, TASK_COUNT, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
@@ -54,7 +54,7 @@ void test_tasks_init_with_null_handler_returns_error(void) {
 void test_tasks_init_with_null_list_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_init(&tasks_handler, NULL, TASK_COUNT, 0U);
+    rc = tasks_api_init(&tasks_handler, NULL, TASK_COUNT, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
@@ -69,7 +69,7 @@ void test_tasks_init_with_invalid_list_item_state_returns_error(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    rc = tasks_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
+    rc = tasks_api_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_LIST, rc, "Expected INVALID_LIST return code");
 }
@@ -84,7 +84,7 @@ void test_tasks_init_with_invalid_list_item_id_returns_error(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    rc = tasks_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
+    rc = tasks_api_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_LIST, rc, "Expected INVALID_LIST return code");
 }
@@ -92,7 +92,7 @@ void test_tasks_init_with_invalid_list_item_id_returns_error(void) {
 void test_tasks_init_with_zero_tasks_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_init(&tasks_handler, t_list, 0U, 0U);
+    rc = tasks_api_init(&tasks_handler, t_list, 0U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_LIST, rc, "Expected INVALID_LIST return code");
 }
@@ -100,7 +100,7 @@ void test_tasks_init_with_zero_tasks_returns_error(void) {
 void test_tasks_init_with_invalid_count_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_init(&tasks_handler, t_list, MAX_TASKS + 1U, 0U);
+    rc = tasks_api_init(&tasks_handler, t_list, MAX_TASKS + 1U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_LIST, rc, "Expected INVALID_LIST return code");
 }
@@ -108,7 +108,7 @@ void test_tasks_init_with_invalid_count_returns_error(void) {
 void test_tasks_init_with_valid_list_initializes_tasks_handler(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_init(&tasks_handler, t_list, TASK_COUNT, 0U);
+    rc = tasks_api_init(&tasks_handler, t_list, TASK_COUNT, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_COUNT, tasks_handler.task_num, "Number of tasks not set correctly");
@@ -124,7 +124,7 @@ void test_tasks_init_with_valid_list_initializes_tasks_handler(void) {
 void test_tasks_init_with_valid_list_initializes_heap(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_init(&tasks_handler, t_list, TASK_COUNT, 0U);
+    rc = tasks_api_init(&tasks_handler, t_list, TASK_COUNT, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_FALSE_MESSAGE(min_heap_api_is_empty(&tasks_handler.scheduled_tasks), "Scheduled tasks heap should not be empty after initialization");
@@ -147,7 +147,7 @@ void test_tasks_init_without_function_original_states_defaults_disabled(void) {
         { .task_id = TASK_4, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    rc = tasks_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
+    rc = tasks_api_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     for (uint8_t i = 0; i < TASK_COUNT; ++i) {
@@ -165,7 +165,7 @@ void test_tasks_init_without_one_shot_defaults_to_non_one_shot(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    rc = tasks_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
+    rc = tasks_api_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     for (uint8_t i = 0; i < TASK_COUNT; ++i) {
@@ -198,7 +198,7 @@ void test_tasks_handle_task_transition_with_valid_id_returns_ok(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
     tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
 
@@ -218,7 +218,7 @@ void test_tasks_handle_task_transition_with_valid_id_adds_and_removes_from_heap(
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
     tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
 
@@ -246,7 +246,7 @@ void test_tasks_handle_task_transition_with_valid_id_updates_trigger_time(void) 
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
     tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
 
@@ -271,7 +271,7 @@ void test_tasks_handle_task_transition_with_valid_id_updates_trigger_time_on_res
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
     tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
     tasks_handler.actual_state[0] = TASKS_STATE_PAUSED;
@@ -311,7 +311,7 @@ void test_tasks_handle_task_transition_with_valid_id_and_no_state_change_does_no
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
     tasks_handler.task_num = TASK_COUNT;
     tasks_handler.actual_state[0] = TASKS_STATE_ENABLED;
     tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
@@ -341,7 +341,7 @@ void test_tasks_update_heap_with_correct_parameters_returns_ok(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
     tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
 
@@ -359,7 +359,7 @@ void test_tasks_update_heap_with_correct_parameters_returns_ok(void) {
 void test_tasks_routine_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_routine(NULL, 0U);
+    rc = tasks_api_routine(NULL, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
@@ -369,7 +369,7 @@ void test_tasks_routine_with_no_tasks_returns_error(void) {
 
     tasks_handler.task_num = 0U;
 
-    rc = tasks_routine(&tasks_handler, 0U);
+    rc = tasks_api_routine(&tasks_handler, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_ERROR, rc, "Expected ERROR return code");
 }
@@ -380,7 +380,7 @@ void test_tasks_routine_with_module_disabled_returns_disabled(void) {
     tasks_handler.task_num = TASK_COUNT;
     tasks_handler.task_module_enabled = false;
 
-    rc = tasks_routine(&tasks_handler, 0U);
+    rc = tasks_api_routine(&tasks_handler, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_DISABLED, rc, "Expected DISABLED return code");
 }
@@ -390,7 +390,7 @@ void test_task_routine_with_past_tick_returns_temporal_discontinuity(void) {
 
     tasks_handler.prev_tick = 10U;
 
-    rc = tasks_routine(&tasks_handler, 5U);
+    rc = tasks_api_routine(&tasks_handler, 5U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
 }
@@ -400,7 +400,7 @@ void test_tasks_routine_with_valid_parameters_executes_tasks_immediately(void) {
 
     tasks_handler.task_module_enabled = true;
 
-    rc = tasks_routine(&tasks_handler, 0U);
+    rc = tasks_api_routine(&tasks_handler, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_1_fake.call_count, "Task function should have been called once");
@@ -414,12 +414,12 @@ void test_tasks_routine_with_valid_parameters_executes_tasks_after_interval(void
 
     tasks_handler.task_module_enabled = true;
 
-    rc = tasks_routine(&tasks_handler, 4U);
+    rc = tasks_api_routine(&tasks_handler, 4U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_1_fake.call_count, "Task function should not have been called yet");
 
-    rc = tasks_routine(&tasks_handler, 12U);
+    rc = tasks_api_routine(&tasks_handler, 12U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, task_function_1_fake.call_count, "Task function should have been called once after interval");
@@ -438,21 +438,21 @@ void test_tasks_routine_with_valid_parameters_executes_one_shot_tasks_only_once(
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
     tasks_handler.task_module_enabled = true;
 
-    rc = tasks_routine(&tasks_handler, 4U);
+    rc = tasks_api_routine(&tasks_handler, 4U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, task_function_3_fake.call_count, "Task function should not have been called yet");
 
-    rc = tasks_routine(&tasks_handler, 12U);
+    rc = tasks_api_routine(&tasks_handler, 12U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_3_fake.call_count, "Task function should have been called once after interval");
 
-    rc = tasks_routine(&tasks_handler, 35U);
+    rc = tasks_api_routine(&tasks_handler, 35U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_3_fake.call_count, "One-shot task function should not have been called again");
@@ -468,23 +468,23 @@ void test_tasks_routine_with_valid_parameters_executes_one_shot_after_reenabled(
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
     tasks_handler.task_module_enabled = true;
 
-    rc = tasks_routine(&tasks_handler, 12U);
+    rc = tasks_api_routine(&tasks_handler, 12U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_3_fake.call_count, "Task function should have been called once after interval");
 
-    tasks_enable(&tasks_handler, TASK_3, 20U);
+    tasks_api_enable_task(&tasks_handler, TASK_3, 20U);
 
-    rc = tasks_routine(&tasks_handler, 24U);
+    rc = tasks_api_routine(&tasks_handler, 24U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_3_fake.call_count, "One-shot task function should not have been called again after being reenabled before timeout");
 
-    rc = tasks_routine(&tasks_handler, 30U);
+    rc = tasks_api_routine(&tasks_handler, 30U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, task_function_3_fake.call_count, "One-shot task function should have been called again after being reenabled and reaching timeout");
@@ -493,7 +493,7 @@ void test_tasks_routine_with_valid_parameters_executes_one_shot_after_reenabled(
 void test_tasks_enable_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_enable(NULL, 0U, 0U);
+    rc = tasks_api_enable_task(NULL, 0U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
@@ -501,7 +501,7 @@ void test_tasks_enable_with_null_handler_returns_error(void) {
 void test_tasks_enable_with_invalid_id_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_enable(&tasks_handler, MAX_TASKS + 1U, 0U);
+    rc = tasks_api_enable_task(&tasks_handler, MAX_TASKS + 1U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
@@ -511,7 +511,7 @@ void test_tasks_enable_with_past_tick_returns_temporal_discontinuity(void) {
 
     tasks_handler.prev_tick = 10U;
 
-    rc = tasks_enable(&tasks_handler, 0U, 5U);
+    rc = tasks_api_enable_task(&tasks_handler, 0U, 5U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
 }
@@ -526,9 +526,9 @@ void test_tasks_enable_with_already_enabled_task_returns_ok(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    rc = tasks_enable(&tasks_handler, 0U, 0U);
+    rc = tasks_api_enable_task(&tasks_handler, 0U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[0], "Task state should remain ENABLED");
@@ -544,9 +544,9 @@ void test_tasks_enable_with_valid_id_enables_task(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    rc = tasks_enable(&tasks_handler, 1U, 0U);
+    rc = tasks_api_enable_task(&tasks_handler, 1U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[1], "Task state should be updated to ENABLED");
@@ -566,13 +566,13 @@ void test_tasks_enable_after_pause_resumes_task_with_correct_trigger_time(void) 
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
     tasks_handler.actual_state[1] = TASKS_STATE_PAUSED;
     tasks_handler.task_list[1].next_trigger = 20U;
     tasks_handler.task_list[1].last_update = 10U;
 
-    rc = tasks_enable(&tasks_handler, 1U, 15U);
+    rc = tasks_api_enable_task(&tasks_handler, 1U, 15U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     struct Task *next_task;
@@ -586,7 +586,7 @@ void test_tasks_enable_after_pause_resumes_task_with_correct_trigger_time(void) 
 void test_tasks_pause_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_pause(NULL, 0U, 0U);
+    rc = tasks_api_pause_task(NULL, 0U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
@@ -594,7 +594,7 @@ void test_tasks_pause_with_null_handler_returns_error(void) {
 void test_tasks_pause_with_invalid_id_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_pause(&tasks_handler, MAX_TASKS + 1U, 0U);
+    rc = tasks_api_pause_task(&tasks_handler, MAX_TASKS + 1U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
@@ -604,7 +604,7 @@ void test_tasks_pause_with_past_tick_returns_temporal_discontinuity(void) {
 
     tasks_handler.prev_tick = 10U;
 
-    rc = tasks_pause(&tasks_handler, 0U, 5U);
+    rc = tasks_api_pause_task(&tasks_handler, 0U, 5U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
 }
@@ -619,11 +619,11 @@ void test_tasks_pause_with_already_paused_task_returns_ok(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
     tasks_handler.actual_state[0] = TASKS_STATE_PAUSED;
 
-    rc = tasks_pause(&tasks_handler, 0U, 0U);
+    rc = tasks_api_pause_task(&tasks_handler, 0U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_PAUSED, tasks_handler.actual_state[0], "Task state should remain PAUSED");
@@ -639,9 +639,9 @@ void test_tasks_pause_with_valid_id_pauses_task(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    rc = tasks_pause(&tasks_handler, 0U, 0U);
+    rc = tasks_api_pause_task(&tasks_handler, 0U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_PAUSED, tasks_handler.actual_state[0], "Task state should be updated to PAUSED");
@@ -654,7 +654,7 @@ void test_tasks_pause_with_valid_id_pauses_task(void) {
 void test_tasks_disable_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_disable(NULL, 0U, 0U);
+    rc = tasks_api_disable_task(NULL, 0U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
@@ -662,7 +662,7 @@ void test_tasks_disable_with_null_handler_returns_error(void) {
 void test_tasks_disable_with_invalid_id_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_disable(&tasks_handler, MAX_TASKS + 1U, 0U);
+    rc = tasks_api_disable_task(&tasks_handler, MAX_TASKS + 1U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
@@ -672,7 +672,7 @@ void test_tasks_disable_with_past_tick_returns_temporal_discontinuity(void) {
 
     tasks_handler.prev_tick = 10U;
 
-    rc = tasks_disable(&tasks_handler, 0U, 5U);
+    rc = tasks_api_disable_task(&tasks_handler, 0U, 5U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
 }
@@ -687,9 +687,9 @@ void test_tasks_disable_with_already_disabled_task_returns_ok(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    rc = tasks_disable(&tasks_handler, 0U, 0U);
+    rc = tasks_api_disable_task(&tasks_handler, 0U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[0], "Task state should remain DISABLED");
@@ -705,9 +705,9 @@ void test_tasks_disable_with_valid_id_disables_task(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    rc = tasks_disable(&tasks_handler, 0U, 0U);
+    rc = tasks_api_disable_task(&tasks_handler, 0U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[0], "Task state should be updated to DISABLED");
@@ -720,7 +720,7 @@ void test_tasks_disable_with_valid_id_disables_task(void) {
 void test_tasks_update_task_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_update_task(NULL, 0U, 10U, 0U, false, 0U);
+    rc = tasks_api_update_task(NULL, 0U, 10U, 0U, false, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
@@ -728,7 +728,7 @@ void test_tasks_update_task_with_null_handler_returns_error(void) {
 void test_tasks_update_task_with_invalid_id_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_update_task(&tasks_handler, MAX_TASKS + 1U, 10U, 0U, false, 0U);
+    rc = tasks_api_update_task(&tasks_handler, MAX_TASKS + 1U, 10U, 0U, false, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
@@ -738,7 +738,7 @@ void test_tasks_update_task_with_past_tick_returns_temporal_discontinuity(void) 
 
     tasks_handler.prev_tick = 10U;
 
-    rc = tasks_update_task(&tasks_handler, 0U, 10U, 0U, false, 5U);
+    rc = tasks_api_update_task(&tasks_handler, 0U, 10U, 0U, false, 5U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
 }
@@ -753,9 +753,9 @@ void test_tasks_update_task_with_valid_id_updates_task(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    rc = tasks_update_task(&tasks_handler, 0U, 20U, 10U, true, 10U);
+    rc = tasks_api_update_task(&tasks_handler, 0U, 20U, 10U, true, 10U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT16_MESSAGE(20U, tasks_handler.task_list[0].task_interval, "Task interval should be updated");
@@ -785,9 +785,9 @@ void test_tasks_update_task_with_valid_id_and_disabled_task_updates_task(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    rc = tasks_update_task(&tasks_handler, 1U, 30U, 10U, true, 10U);
+    rc = tasks_api_update_task(&tasks_handler, 1U, 30U, 10U, true, 10U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT16_MESSAGE(30U, tasks_handler.task_list[1].task_interval, "Task interval should be updated");
@@ -811,11 +811,11 @@ void test_tasks_update_task_with_valid_id_and_paused_task_updates_task(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    tasks_pause(&tasks_handler, 0U, 0U);
+    tasks_api_pause_task(&tasks_handler, 0U, 0U);
 
-    rc = tasks_update_task(&tasks_handler, 0U, 20U, 10U, true, 10U);
+    rc = tasks_api_update_task(&tasks_handler, 0U, 20U, 10U, true, 10U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT16_MESSAGE(20U, tasks_handler.task_list[0].task_interval, "Task interval should be updated");
@@ -833,7 +833,7 @@ void test_tasks_get_task_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
     struct Task task;
 
-    rc = tasks_get_task(NULL, 0U, &task);
+    rc = tasks_api_get_task(NULL, 0U, &task);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
@@ -842,7 +842,7 @@ void test_tasks_get_task_with_invalid_id_returns_error(void) {
     enum TasksReturnCode rc;
     struct Task task;
 
-    rc = tasks_get_task(&tasks_handler, MAX_TASKS + 1U, &task);
+    rc = tasks_api_get_task(&tasks_handler, MAX_TASKS + 1U, &task);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
@@ -858,9 +858,9 @@ void test_tasks_get_task_with_valid_id_returns_ok_and_copies_task(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    rc = tasks_get_task(&tasks_handler, 0U, &task);
+    rc = tasks_api_get_task(&tasks_handler, 0U, &task);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, task.task_id, "Task ID should be copied correctly");
@@ -874,7 +874,7 @@ void test_tasks_get_task_with_valid_id_returns_ok_and_copies_task(void) {
 void test_tasks_module_enable_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_module_enable(NULL, 0U);
+    rc = tasks_api_enable_module(NULL, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
@@ -884,7 +884,7 @@ void test_tasks_module_enable_with_past_tick_returns_temporal_discontinuity(void
 
     tasks_handler.prev_tick = 10U;
 
-    rc = tasks_module_enable(&tasks_handler, 5U);
+    rc = tasks_api_enable_module(&tasks_handler, 5U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
 }
@@ -894,7 +894,7 @@ void test_tasks_module_enable_with_valid_handler_enables_module(void) {
 
     tasks_handler.task_module_enabled = false;
 
-    rc = tasks_module_enable(&tasks_handler, 0U);
+    rc = tasks_api_enable_module(&tasks_handler, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_TRUE_MESSAGE(tasks_handler.task_module_enabled, "Task module should be enabled");
@@ -910,9 +910,9 @@ void test_tasks_module_enable_updates_next_trigger_times_on_enable(void) {
         { .task_id = TASK_4, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
-    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    rc = tasks_module_enable(&tasks_handler, 10U);
+    rc = tasks_api_enable_module(&tasks_handler, 10U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(10U, tasks_handler.prev_tick, "prev_tick should be updated to the current tick when module is enabled");
@@ -925,7 +925,7 @@ void test_tasks_module_enable_updates_next_trigger_times_on_enable(void) {
 void test_tasks_module_disable_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_module_disable(NULL, 0U);
+    rc = tasks_api_disable_module(NULL, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
@@ -935,7 +935,7 @@ void test_tasks_module_disable_sets_prev_tick_to_current_tick(void) {
 
     tasks_handler.prev_tick = 100U;
 
-    rc = tasks_module_disable(&tasks_handler, 150U);
+    rc = tasks_api_disable_module(&tasks_handler, 150U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(150U, tasks_handler.prev_tick, "prev_tick should be reset to the current tick when module is disabled");
@@ -946,7 +946,7 @@ void test_tasks_module_disable_with_past_tick_returns_temporal_discontinuity(voi
 
     tasks_handler.prev_tick = 100U;
 
-    rc = tasks_module_disable(&tasks_handler, 90U);
+    rc = tasks_api_disable_module(&tasks_handler, 90U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
 }
@@ -956,7 +956,7 @@ void test_tasks_module_disable_with_valid_handler_disables_module(void) {
 
     tasks_handler.task_module_enabled = true;
 
-    rc = tasks_module_disable(&tasks_handler, 0U);
+    rc = tasks_api_disable_module(&tasks_handler, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_FALSE_MESSAGE(tasks_handler.task_module_enabled, "Task module should be disabled");
@@ -964,7 +964,7 @@ void test_tasks_module_disable_with_valid_handler_disables_module(void) {
 
 void setUp(void) {
     memset(&tasks_handler, 0, sizeof(tasks_handler));
-    tasks_init(&tasks_handler, t_list, TASK_COUNT, 0U);
+    tasks_api_init(&tasks_handler, t_list, TASK_COUNT, 0U);
 
     RESET_FAKE(task_function_1);
     RESET_FAKE(task_function_2);

@@ -73,7 +73,7 @@ void init_tasks_module(struct TasksHandler *task_handler) {
         }
     };
 
-    enum TasksReturnCode rc = tasks_init(task_handler, t_l, TASK_COUNT, 0U);
+    enum TasksReturnCode rc = tasks_api_init(task_handler, t_l, TASK_COUNT, 0U);
 
     if (rc == TASKS_RC_OK) {
         printf("The module initialized correctly!\n");
@@ -103,20 +103,20 @@ int main(void) {
     for (uint32_t i = 0; i <= 25; i++) {
 
         if (i == 5) {
-            tasks_module_enable(&tasks_handler, i);
+            tasks_api_enable_module(&tasks_handler, i);
         }
 
         if (i == 7) {
-            tasks_enable(&tasks_handler, PRINT_TASK_2, i);
+            tasks_api_enable_task(&tasks_handler, PRINT_TASK_2, i);
         }
 
         printf("Tick: %" PRId32 "  -> ", i);
-        tasks_routine(&tasks_handler, i);
+        tasks_api_routine(&tasks_handler, i);
 
         printf("\n");
     }
 
-    tasks_pause(&tasks_handler, PRINT_TASK_2, 25U);
+    tasks_api_pause_task(&tasks_handler, PRINT_TASK_2, 25U);
 
     /*
      * Pause task 2 at tick 25 and see that it doesn't fire at tick 26
@@ -128,12 +128,12 @@ int main(void) {
     for (uint32_t i = 26; i <= 60; i++) {
 
         if (i == 35) {
-            tasks_enable(&tasks_handler, PRINT_TASK_2, i);
-            tasks_enable(&tasks_handler, PRINT_TASK_3, i);
+            tasks_api_enable_task(&tasks_handler, PRINT_TASK_2, i);
+            tasks_api_enable_task(&tasks_handler, PRINT_TASK_3, i);
         }
 
         printf("Tick: %" PRId32 "  -> ", i);
-        tasks_routine(&tasks_handler, i);
+        tasks_api_routine(&tasks_handler, i);
 
         printf("\n");
     }
@@ -145,30 +145,30 @@ int main(void) {
     for (uint32_t i = 61; i <= 100; i++) {
 
         if (i == 65) {
-            tasks_module_disable(&tasks_handler, i);
+            tasks_api_disable_module(&tasks_handler, i);
         }
 
         if (i == 76) {
-            tasks_module_enable(&tasks_handler, i);
+            tasks_api_enable_module(&tasks_handler, i);
         }
 
         printf("Tick: %" PRId32 "  -> ", i);
-        tasks_routine(&tasks_handler, i);
+        tasks_api_routine(&tasks_handler, i);
 
         printf("\n");
     }
 
-    tasks_disable(&tasks_handler, PRINT_TASK_1, 100U);
-    tasks_disable(&tasks_handler, PRINT_TASK_2, 100U);
-    tasks_disable(&tasks_handler, PRINT_TASK_3, 100U);
+    tasks_api_disable_task(&tasks_handler, PRINT_TASK_1, 100U);
+    tasks_api_disable_task(&tasks_handler, PRINT_TASK_2, 100U);
+    tasks_api_disable_task(&tasks_handler, PRINT_TASK_3, 100U);
 
     /*
      * After disabling and reenabling the tasks, they should all resume from the beginning as if they were never executed before
      */
 
-    tasks_enable(&tasks_handler, PRINT_TASK_1, 100U);
-    tasks_enable(&tasks_handler, PRINT_TASK_2, 100U);
-    tasks_enable(&tasks_handler, PRINT_TASK_3, 100U);
+    tasks_api_enable_task(&tasks_handler, PRINT_TASK_1, 100U);
+    tasks_api_enable_task(&tasks_handler, PRINT_TASK_2, 100U);
+    tasks_api_enable_task(&tasks_handler, PRINT_TASK_3, 100U);
 
     /*
      * We can see the same behaviour if the tick doesn't have a regular increment
@@ -187,7 +187,7 @@ int main(void) {
     for (uint32_t i = 100; i <= 150;) {
 
         printf("Tick: %" PRIu32 "  -> ", i);
-        tasks_routine(&tasks_handler, i);
+        tasks_api_routine(&tasks_handler, i);
 
         printf("\n");
 
