@@ -29,9 +29,9 @@ typedef void (*task_definition)(void);
  * \brief The possible states of a task
  */
 enum TaskState {
-    TASKS_STATE_DISABLED, /*!< The task is disabled, will not be executed and on restart will start immediately*/
-    TASKS_STATE_ENABLED,  /*!< The task is enabled, will be executed according to its schedule*/
-    TASKS_STATE_PAUSED    /*!< The task is paused, will not be executed but can be resumed from where it was frozen*/
+    TASKS_STATE_DISABLED = 0U, /*!< The task is disabled, will not be executed and on restart will start immediately*/
+    TASKS_STATE_ENABLED,       /*!< The task is enabled, will be executed according to its schedule*/
+    TASKS_STATE_PAUSED         /*!< The task is paused, will not be executed but can be resumed from where it was frozen*/
 };
 
 /*!

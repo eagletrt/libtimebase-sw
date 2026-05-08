@@ -16,9 +16,10 @@
  * \brief Initialize the tasks module
  *
  * \param tasks_handler The pointer to the tasks handler structure, must not be NULL
- * \param t_list The list of tasks to initialize, must not be NULL and must contain at least one task, all the tasks must have a unique identifier starting from 0 and sequential
+ * \param t_list The list of tasks to initialize, must not be NULL and must contain at least one task, all the tasks must have a unique identifier starting from 0 and sequential, no task can be initialized to paused state
  * \param num_tasks The number of tasks in the list, must be greater than 0 and less than or equal to MAX_TASKS
  * \param current_tick The current tick count, used to calculate the next trigger time of the tasks
+ * 
  * 
  * \retval TASKS_RC_OK The operation was successful
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument

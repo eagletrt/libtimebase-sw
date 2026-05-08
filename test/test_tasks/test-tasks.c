@@ -137,6 +137,42 @@ void test_tasks_init_with_valid_list_initializes_heap(void) {
     }
 }
 
+void test_tasks_init_without_function_original_states_defaults_disabled(void) {
+    enum TasksReturnCode rc;
+
+    TaskList invalid_list = {
+        { .task_id = TASK_1, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    rc = tasks_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    for (uint8_t i = 0; i < TASK_COUNT; ++i) {
+        TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.task_list[i].task_state, "Task state should be set to DISABLED when not initialized");
+    }
+}
+
+void test_tasks_init_without_one_shot_defaults_to_non_one_shot(void) {
+    enum TasksReturnCode rc;
+
+    TaskList invalid_list = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_ENABLED, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    rc = tasks_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    for (uint8_t i = 0; i < TASK_COUNT; ++i) {
+        TEST_ASSERT_FALSE_MESSAGE(tasks_handler.task_list[i].one_shot, "one_shot should be set to false when not initialized");
+    }
+}
+
 void test_tasks_handle_task_transition_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
@@ -773,6 +809,8 @@ int main(void) {
     RUN_TEST(test_tasks_init_with_invalid_count_returns_error);
     RUN_TEST(test_tasks_init_with_valid_list_initializes_tasks_handler);
     RUN_TEST(test_tasks_init_with_valid_list_initializes_heap);
+    RUN_TEST(test_tasks_init_without_function_original_states_defaults_disabled);
+    RUN_TEST(test_tasks_init_without_one_shot_defaults_to_non_one_shot);
 
     // TRANSITION TESTS
 
