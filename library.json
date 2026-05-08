@@ -58,8 +58,7 @@
   "build": {
     "flags": [
       "-Iinclude/timebase",
-      "-Iinclude/tasks",
-      "-DEAGLETRT_STATIC=static"
+      "-Iinclude/tasks"
     ]
   }
 }
