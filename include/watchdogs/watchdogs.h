@@ -17,6 +17,8 @@
 #include "arena-allocator-api.h"
 #include "min-heap-api.h"
 
+#include "eagletrt-api.h"
+
 #define MAX_WATCHDOGS (20U)
 
 /*!
