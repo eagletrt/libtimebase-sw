@@ -871,22 +871,95 @@ void test_tasks_get_task_with_valid_id_returns_ok_and_copies_task(void) {
     TEST_ASSERT_EQUAL_UINT16_MESSAGE(5U, task.task_start, "Task start should be copied correctly");
 }
 
-// I don't see the point of testing the setting of the status
-
 void test_tasks_module_enable_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_module_enable(NULL);
+    rc = tasks_module_enable(NULL, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
+void test_tasks_module_enable_with_past_tick_returns_temporal_discontinuity(void) {
+    enum TasksReturnCode rc;
+
+    tasks_handler.prev_tick = 10U;
+
+    rc = tasks_module_enable(&tasks_handler, 5U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
+}
+
+void test_tasks_module_enable_with_valid_handler_enables_module(void) {
+    enum TasksReturnCode rc;
+
+    tasks_handler.task_module_enabled = false;
+
+    rc = tasks_module_enable(&tasks_handler, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_TRUE_MESSAGE(tasks_handler.task_module_enabled, "Task module should be enabled");
+}
+
+void test_tasks_module_enable_updates_next_trigger_times_on_enable(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_ENABLED, .one_shot = true, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_ENABLED, .one_shot = false, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_module_enable(&tasks_handler, 10U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(10U, tasks_handler.prev_tick, "prev_tick should be updated to the current tick when module is enabled");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(10U, tasks_handler.task_list[0].next_trigger, "Next trigger time for task 0 should be updated according to the current tick");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(15U, tasks_handler.task_list[1].next_trigger, "Next trigger time for task 1 should be updated according to the current tick");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(20U, tasks_handler.task_list[2].next_trigger, "Next trigger time for task 2 should be updated according to the current tick");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(10U, tasks_handler.task_list[3].next_trigger, "Next trigger time for task 3 should be updated according to the current tick");
 }
 
 void test_tasks_module_disable_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
-    rc = tasks_module_disable(NULL);
+    rc = tasks_module_disable(NULL, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
+void test_tasks_module_disable_sets_prev_tick_to_current_tick(void) {
+    enum TasksReturnCode rc;
+
+    tasks_handler.prev_tick = 100U;
+
+    rc = tasks_module_disable(&tasks_handler, 150U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(150U, tasks_handler.prev_tick, "prev_tick should be reset to the current tick when module is disabled");
+}
+
+void test_tasks_module_disable_with_past_tick_returns_temporal_discontinuity(void) {
+    enum TasksReturnCode rc;
+
+    tasks_handler.prev_tick = 100U;
+
+    rc = tasks_module_disable(&tasks_handler, 90U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
+}
+
+void test_tasks_module_disable_with_valid_handler_disables_module(void) {
+    enum TasksReturnCode rc;
+
+    tasks_handler.task_module_enabled = true;
+
+    rc = tasks_module_disable(&tasks_handler, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_FALSE_MESSAGE(tasks_handler.task_module_enabled, "Task module should be disabled");
 }
 
 void setUp(void) {
@@ -978,7 +1051,14 @@ int main(void) {
     RUN_TEST(test_tasks_get_task_with_valid_id_returns_ok_and_copies_task);
 
     RUN_TEST(test_tasks_module_enable_with_null_handler_returns_error);
+    RUN_TEST(test_tasks_module_enable_with_past_tick_returns_temporal_discontinuity);
+    RUN_TEST(test_tasks_module_enable_with_valid_handler_enables_module);
+    RUN_TEST(test_tasks_module_enable_updates_next_trigger_times_on_enable);
+
     RUN_TEST(test_tasks_module_disable_with_null_handler_returns_error);
+    RUN_TEST(test_tasks_module_disable_sets_prev_tick_to_current_tick);
+    RUN_TEST(test_tasks_module_disable_with_past_tick_returns_temporal_discontinuity);
+    RUN_TEST(test_tasks_module_disable_with_valid_handler_disables_module);
 
     return UNITY_END();
 }

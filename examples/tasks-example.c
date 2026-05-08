@@ -10,24 +10,23 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "tasks-api.h"
 #include <inttypes.h>
 
-uint32_t tick = 0;
-
 void print_task_1(void) {
-    printf("Task_1 executed correctly at tick %" PRIu32 "\n", tick);
+    printf("Task_1 executed");
     return;
 }
 
 void print_task_2(void) {
-    printf("Task_1 executed correctly at tick %" PRIu32 "\n", tick);
+    printf("Task_2 executed");
     return;
 }
 
 void print_task_3(void) {
-    printf("Task_1 executed correctly at tick %" PRIu32 "\n", tick);
+    printf("Task_3 executed");
     return;
 }
 
@@ -63,12 +62,12 @@ void init_tasks_module(struct TasksHandler *task_handler) {
             .task_start = 5U,
         },
 
-        // Enabled one-shot task, start delayed by 10 ticks, interval of 15 ticks (ignored since one-shot)
+        // Enabled one-shot task, start delayed by 10 ticks, interval of 5 ticks (ignored since one-shot)
         {
             .task_id = PRINT_TASK_3,
             .one_shot = true,
             .task_function = print_task_3,
-            .task_interval = 15U,
+            .task_interval = 5U,
             .task_state = TASKS_STATE_ENABLED,
             .task_start = 10U,
         }
@@ -93,11 +92,108 @@ int main(void) {
 
     /*
      * Go trough some ticks to see initialized behaviour.
+     * We enable the module at tick 5
+     * At tick 5 we should see task 1 fire
+     * At tick 10 again task 1 should fire as the
+     * At tick 15 task 3 should fire for the first time and also task 1.
      * 
-     * At tick 0 we should see task 1 fire
-     * At tick 5 again task 1 should fire as the
-     * 
+     * We also enable task 2 at tick 7, so it should fire at ticks 12 and 19.
      */
+
+    for (uint32_t i = 0; i <= 25; i++) {
+
+        if (i == 5) {
+            tasks_module_enable(&tasks_handler, i);
+        }
+
+        if (i == 7) {
+            tasks_enable(&tasks_handler, PRINT_TASK_2, i);
+        }
+
+        printf("Tick: %" PRId32 "  -> ", i);
+        tasks_routine(&tasks_handler, i);
+
+        printf("\n");
+    }
+
+    tasks_pause(&tasks_handler, PRINT_TASK_2, 25U);
+
+    /*
+     * Pause task 2 at tick 25 and see that it doesn't fire at tick 26
+     * and then reenable it at tick 35, at which point it should fire after 1 tick and then every 7 ticks as before.
+     * once resumed at tick 35 it should fire after 5 ticks.
+     * 
+     * At tick 35 enable also task 3 that should fire after 10 ticks and then never again
+     */
+    for (uint32_t i = 26; i <= 60; i++) {
+
+        if (i == 35) {
+            tasks_enable(&tasks_handler, PRINT_TASK_2, i);
+            tasks_enable(&tasks_handler, PRINT_TASK_3, i);
+        }
+
+        printf("Tick: %" PRId32 "  -> ", i);
+        tasks_routine(&tasks_handler, i);
+
+        printf("\n");
+    }
+
+    /*
+     * If the module is disabled at tick 65, no task should fire at tick 70, 
+     * but if we reenable it at tick 76 all the tasks should resume as if they were frozen.
+     */
+    for (uint32_t i = 61; i <= 100; i++) {
+
+        if (i == 65) {
+            tasks_module_disable(&tasks_handler, i);
+        }
+
+        if (i == 76) {
+            tasks_module_enable(&tasks_handler, i);
+        }
+
+        printf("Tick: %" PRId32 "  -> ", i);
+        tasks_routine(&tasks_handler, i);
+
+        printf("\n");
+    }
+
+    tasks_disable(&tasks_handler, PRINT_TASK_1, 100U);
+    tasks_disable(&tasks_handler, PRINT_TASK_2, 100U);
+    tasks_disable(&tasks_handler, PRINT_TASK_3, 100U);
+
+    /*
+     * After disabling and reenabling the tasks, they should all resume from the beginning as if they were never executed before
+     */
+
+    tasks_enable(&tasks_handler, PRINT_TASK_1, 100U);
+    tasks_enable(&tasks_handler, PRINT_TASK_2, 100U);
+    tasks_enable(&tasks_handler, PRINT_TASK_3, 100U);
+
+    /*
+     * We can see the same behaviour if the tick doesn't have a regular increment
+     */
+
+    /*
+     * Expected behaviour:
+     * At tick 100 task 1 should fire
+     * At tick 105 task 1 should fire again and also task 2 should fire for the first time
+     * At tick 110 task 1 should fire again and task 3 should fire for the first (and last) time
+     * At tick 112 task 2 should fire again
+     * At tick 115 task 1 should fire again
+     * Then task 1 should fire every 5 ticks and task 2 every 7 ticks.
+     */
+
+    for (uint32_t i = 100; i <= 150;) {
+
+        printf("Tick: %" PRIu32 "  -> ", i);
+        tasks_routine(&tasks_handler, i);
+
+        printf("\n");
+
+        // Increment tick by a random amount between 1 and 5
+        i += rand() % 5 + 1;
+    }
 
     return 0;
 }

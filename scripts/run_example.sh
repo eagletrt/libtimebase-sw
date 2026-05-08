@@ -7,6 +7,8 @@ if [ ! -f "examples/${filename}.c" ]; then
     exit 1
 fi
 
+
+rm -rf .pio
 # Create platformio.ini
 cat > platformio_example.ini << EOF
 [platformio]

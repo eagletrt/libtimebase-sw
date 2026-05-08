@@ -62,7 +62,9 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
 
     // Entering ENABLED
     if (to == TASKS_STATE_ENABLED) {
-        if (from == TASKS_STATE_PAUSED) {
+        // If task is one-shot it doesn't make sense to take into accout the time when
+        // it was paused
+        if (from == TASKS_STATE_PAUSED && !task->one_shot) {
             task->next_trigger = tick + (task->next_trigger - task->last_update);
         } else {
             task->next_trigger = tick + task->task_start;
@@ -308,20 +310,35 @@ enum TasksReturnCode tasks_get_task(struct TasksHandler *tasks_handler, uint8_t 
     return TASKS_RC_OK;
 }
 
-enum TasksReturnCode tasks_module_enable(struct TasksHandler *tasks_handler) {
+enum TasksReturnCode tasks_module_enable(struct TasksHandler *tasks_handler, uint32_t current_tick) {
     if (tasks_handler == NULL) {
         return TASKS_RC_NULL_POINTER;
+    }
+
+    if (current_tick < tasks_handler->prev_tick) {
+        return TASKS_RC_TEMPORAL_DISCONTINUITY;
+    }
+
+    for (int i = 0; i < tasks_handler->task_num; i++) {
+        tasks_handler->task_list[i].next_trigger += (current_tick - tasks_handler->prev_tick);
     }
 
     tasks_handler->task_module_enabled = true;
 
+    tasks_handler->prev_tick = current_tick;
+
     return TASKS_RC_OK;
 }
 
-enum TasksReturnCode tasks_module_disable(struct TasksHandler *tasks_handler) {
+enum TasksReturnCode tasks_module_disable(struct TasksHandler *tasks_handler, uint32_t current_tick) {
     if (tasks_handler == NULL) {
         return TASKS_RC_NULL_POINTER;
     }
+    if (current_tick < tasks_handler->prev_tick) {
+        return TASKS_RC_TEMPORAL_DISCONTINUITY;
+    }
+
+    tasks_handler->prev_tick = current_tick;
 
     tasks_handler->task_module_enabled = false;
 
