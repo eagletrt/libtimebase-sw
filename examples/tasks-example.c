@@ -12,21 +12,22 @@
 #include <stdbool.h>
 
 #include "tasks-api.h"
+#include <inttypes.h>
 
 uint32_t tick = 0;
 
 void print_task_1(void) {
-    printf("Task_1 executed correctly at tick %d", tick);
+    printf("Task_1 executed correctly at tick %" PRIu32 "\n", tick);
     return;
 }
 
 void print_task_2(void) {
-    printf("Task_2 executed correctly at tick %d", tick);
+    printf("Task_1 executed correctly at tick %" PRIu32 "\n", tick);
     return;
 }
 
 void print_task_3(void) {
-    printf("Task_3 executed correctly at tick %d", tick);
+    printf("Task_1 executed correctly at tick %" PRIu32 "\n", tick);
     return;
 }
 
@@ -43,7 +44,7 @@ void init_tasks_module(struct TasksHandler *task_handler) {
 
     // The only parameters that can be omitted are one_shot (default false)
     // and task_state (default DISABLED), but the task_function and ID must be provided for every task
-    TaskList t_l = {
+    static TaskList t_l = {
         // Enabled default task, not one-shot, immediate start, interval of 5 ticks
         {
             .task_id = PRINT_TASK_1,
@@ -73,10 +74,10 @@ void init_tasks_module(struct TasksHandler *task_handler) {
         }
     };
 
-    enum TasksReturnCode rc = (task_handler, t_l, TASK_COUNT, 0U);
+    enum TasksReturnCode rc = tasks_init(task_handler, t_l, TASK_COUNT, 0U);
 
     if (rc == TASKS_RC_OK) {
-        printf("The module initialized correctly!");
+        printf("The module initialized correctly!\n");
     }
 }
 
@@ -94,7 +95,7 @@ int main(void) {
      * Go trough some ticks to see initialized behaviour.
      * 
      * At tick 0 we should see task 1 fire
-     * At tick 5 again task 1 should fire as the 
+     * At tick 5 again task 1 should fire as the
      * 
      */
 

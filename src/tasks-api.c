@@ -99,9 +99,8 @@ enum TasksReturnCode tasks_init(struct TasksHandler *tasks_handler, TaskList t_l
         return TASKS_RC_INVALID_LIST;
     }
 
-    // This is intentional as the arena allocator already has safeguards
-    // and this avoids any memory leak in case of double init
-    arena_allocator_api_free(&tasks_handler->arena_handler);
+    // TODO: handle memory leaks do to double init
+    // arena_allocator_api_free(&tasks_handler->arena_handler);
 
     memset(tasks_handler, 0, sizeof(*tasks_handler));
 
