@@ -7,130 +7,184 @@
  * \brief Implementation of generic watchdogs that time-out after a certain interval of time 
  */
 
+#include "watchdogs.h"
+
 /*!
- * \brief Initialize the watchdog
+ * \brief Initialize the watchdog module containing all the scheduled watchdogs
  *
- * \param watchdog A pointer to the watchdog handler structure
- * \param timeout The number of ticks that should elapse for the watchdog to time-out
- * \param expire The function that is called when the watchdog times-out
+ * \param watchdogs_handler A pointer to the watchdog handler structure
+ * \param current_tick The number of ticks that should elapse for the watchdog to time-out
  *
- * \return WatchdogReturnCode
- *     - WATCHDOG_NULL_POINTER if the watchdog or the expire pointers are NULL
- *     - WATCHDOG_BUSY if the watchdog is already running
- *     - WATCHDOG_OK otherwise
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog handler is NULL
+ * \retval WATCHDOG_RC_ERROR An error occurred during the initialization of the watchdog handler
+ * \retval WATCHDOG_RC_OK Otherwise
  */
 enum WatchdogReturnCode watchdogs_api_init_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick);
 
 /*!
- * \brief De-initialize the watchdog
+ * \brief The routine that should be called periodically to check if any watchdog has timed out and execute the corresponding callback
  *
- * \param watchdog A pointer to the watchdog handler structure 
+ * \param watchdogs_handler A pointer to the watchdog handler structure
+ * \param current_tick The current tick 
  *
- * \return WatchdogReturnCode
- *     - WATCHDOG_NULL_POINTER if the watchdog or the internal expire pointers are NULL
- *     - WATCHDOG_OK otherwise
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog handler is NULL
+ * \retval WATCHDOG_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
+ * \retval WATCHDOG_RC_NOT_RUNNING The watchdog module is not enabled
+ * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the routine
+ * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_routine(WatchdogHandler *watchdogs_handler, uint32_t current_tick);
+enum WatchdogReturnCode watchdogs_api_routine(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick);
+
+/*!
+ * \brief Initialize a watchdog
+ *
+ * \param watchdog A pointer to the watchdog structure
+ * \param timeout The timeout value
+ * \param callback The timeout callback function
+ *
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog is NULL
+ * \retval WATCHDOG_RC_ERROR An error occurred during the initialization of the watchdog
+ * \retval WATCHDOG_RC_OK Otherwise
+ */
+enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watchdog, uint32_t timeout, watchdog_timeout_callback_t callback);
 
 /*!
  * \brief Start a watchdog
  *
  * \details A timed out watchdog cannot be started
+ * 
+ * \param watchdogs_handler A pointer to the watchdog handler structure
+ * \param watchdog A pointer to the watchdog
+ * \param current_tick The current tick
  *
- * \param watchdog A pointer to the watchdog handler structure
- *
- * \return WatchdogReturnCode
- *     - WATCHDOG_NULL_POINTER if the watchdog is NULL
- *     - WATCHDOG_BUSY if the watchdog is already running
- *     - WATCHDOG_TIMED_OUT if the watchdog has already timed out
- *     - WATCHDOG_UNAVAILABLE if the watchdog can't be registered
- *     - WATCHDOG_OK otherwise
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog is NULL
+ * \retval WATCHDOG_RC_BUSY The watchdog is already running
+ * \retval WATCHDOG_RC_TIMED_OUT The watchdog has already timed out
+ * \retval WATCHDOG_RC_UNINITIALIZED The watchdog is not initialized
+ * \retval WATCHDOG_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
+ * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_watchdog_start(Watchdog *const watchdog);
+enum WatchdogReturnCode watchdogs_api_watchdog_start(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick);
 
 /*!
  * \brief Stop a watchdog
  *
  * \details A timed out watchdog cannot be stopped
  *
- * \param watchdog A pointer to the watchdog handler structure
+ * \param watchdogs_handler A pointer to the watchdog handler structure
+ * \param watchdog A pointer to the watchdog
  *
- * \return WatchdogReturnCode
- *     - WATCHDOG_NULL_POINTER if the watchdog is NULL
- *     - WATCHDOG_NOT_RUNNING if the watchdog is not running
- *     - WATCHDOG_TIMED_OUT if the watchdog has already timed out
- *     - WATCHDOG_OK otherwise
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog is NULL
+ * \retval WATCHDOG_RC_NOT_RUNNING The watchdog is not running
+ * \retval WATCHDOG_RC_TIMED_OUT The watchdog has already timed out
+ * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_watchdog_stop(Watchdog *const watchdog);
+enum WatchdogReturnCode watchdogs_api_watchdog_stop(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog);
 
 /*!
- * \brief Stop a watchdog
+ * \brief Pauses a watchdog
  *
- * \details A timed out watchdog cannot be stopped
+ * \details A timed out watchdog cannot be paused
+ * 
+ * \param watchdogs_handler A pointer to the watchdog handler structure
+ * \param watchdog A pointer to the watchdog
+ * \param current_tick The current tick
  *
- * \param watchdog A pointer to the watchdog handler structure
- *
- * \return WatchdogReturnCode
- *     - WATCHDOG_NULL_POINTER if the watchdog is NULL
- *     - WATCHDOG_NOT_RUNNING if the watchdog is not running
- *     - WATCHDOG_TIMED_OUT if the watchdog has already timed out
- *     - WATCHDOG_OK otherwise
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog is NULL
+ * \retval WATCHDOG_RC_NOT_RUNNING The watchdog is not running
+ * \retval WATCHDOG_RC_TIMED_OUT The watchdog has already timed out
+ * \retval WATCHDOG_RC_UNINITIALIZED The watchdog is not initialized
+ * \retval WATCHDOG_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
+ * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
+ * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_watchdog_pause(Watchdog *const watchdog);
+enum WatchdogReturnCode watchdogs_api_watchdog_pause(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick);
 
 /*!
- * \brief Start a watchdog even if it has timed out
+ * \brief Restarts a watchdog no matter its state
  *
- * \details If the watchdog is not running it is started
- * as the watchdog start function
- *
- * \param watchdog A pointer to the watchdog handler structure
- *
- * \return WatchdogReturnCode
- *     - WATCHDOG_NULL_POINTER if the watchdog is NULL
- *     - WATCHDOG_UNAVAILABLE if the watchdog can't be registered
- *     - WATCHDOG_OK otherwise
+ * \param watchdogs_handler A pointer to the watchdog handler structure
+ * \param watchdog A pointer to the watchdogd
+ * \param current_tick The current tick
+ * 
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog is NULL
+ * \retval WATCHDOG_RC_UNINITIALIZED The watchdog is not initialized
+ * \retval WATCHDOG_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
+ * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
+ * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_watchdog_restart(Watchdog *const watchdog);
+enum WatchdogReturnCode watchdogs_api_watchdog_restart(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick);
 
 /*!
- * \brief Reset the watchdog internal time to 0
+ * \brief Replenishes the watchdog internal time
  *
- * \details The watchdog is not stopped after the reset
+ * \param watchdogs_handler A pointer to the watchdog handler structure
+ * \param watchdog A pointer to the watchdog
+ * \param current_tick The current tick
+ *
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog is NULL
+ * \retval WATCHDOG_RC_NOT_RUNNING The watchdog is not running
+ * \retval WATCHDOG_RC_TIMED_OUT The watchdog has already timed out
+ * \retval WATCHDOG_RC_UNINITIALIZED The watchdog is not initialized
+ * \retval WATCHDOG_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
+ * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
+ * \retval WATCHDOG_RC_OK Otherwise
+ */
+enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick);
+
+/*!
+ * \brief Causes the watchdog to time-out immediately and execute the corresponding callback
+ * if the watchdog is running
+ *
+ * \param watchdogs_handler A pointer to the watchdog handler structure
+ * \param watchdog A pointer to the watchdog
+ *
+ * \retval WATCHDOG_RC_OK Otherwise
+ * \retval WATCHDOG_RC_NOT_RUNNING The watchdog is not running
+ * \retval WATCHDOG_RC_UNINITIALIZED The watchdog is not initialized
+ * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog is NULL
+ */
+enum WatchdogReturnCode watchdogs_api_watchdog_timeout(struct WatchdogHandler *watchdogs_handler, struct Watchdog *watchdog);
+
+/*!
+ * \brief Check if the watchdog is running
  *
  * \param watchdog A pointer to the watchdog
  *
- * \return WatchogReturnCode
- *     - WATCHDOG_NULL_POINTER if the watchdog is NULL
- *     - WATCHDOG_NOT_RUNNING if the watchdog is not running
- *     - WATCHDOG_TIMED_OUT if the watchdog has already timed out
- *     - WATCHDOG_UNAVAILABLE if the watchdog can't be registered inside the timebase
- *     - WATCHDOG_OK otherwise
+ * \returns bool True if the watchdog is running, false otherwise
  */
-enum WatchdogReturnCode watchdogs_api_watchdog_pet(Watchdog *const watchdog);
+bool watchdogs_api_watchdog_is_running(struct Watchdog *const watchdog);
 
 /*!
- * \brief Set the watchdog status as timed out
+ * \brief Check if the watchdog has timed out
  *
  * \param watchdog A pointer to the watchdog
  *
- * \return WatchdogReturnCode
- *     - WATCHDOG_NULL_POINTER A NULL pointer was given as parameter
- *     - WATCHDOG_NOT_RUNNING if the watchdog is not running
- *     - WATCHDOG_TIMED_OUT if the watchdog has already timed out
- *     - WATCHDOG_OK otherwise
+ * \returns bool True if the watchdog has timed out, false otherwise
  */
-enum WatchdogReturnCode watchdogs_api_watchdog_timeout(Watchdog *const watchdog);
+bool watchdogs_api_watchdog_is_timed_out(struct Watchdog *const watchdog);
 
 /*!
- * \param Check if the watchdog has timed out
+ * \brief Enable a watchdog module
  *
- * \param watchdog A pointer to the watchdog
+ * \param watchdogs_handler A pointer to the watchdog handler structure
+ * \param current_tick The current tick
  *
- * \return bool True if the watchdog has timed out, false otherwise
+ * \retval WATCHDOG_RC_OK Otherwise
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog handler is NULL
+ * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
  */
-bool watchdogs_api_watchdog_is_timed_out(Watchdog *const watchdog);
+enum WatchdogReturnCode watchdogs_api_enable_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick);
 
-enum WatchdogReturnCode watchdogs_api_enable_module();
-
-enum WatchdogReturnCode watchdogs_api_disable_module();
+/*!
+ * \brief Disable a watchdog module, the watchdogs are frozen until the module is enabled again
+ *
+ * \param watchdogs_handler A pointer to the watchdog handler structure
+ * \param current_tick The current tick
+ *
+ * \retval WATCHDOG_RC_OK Otherwise
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog handler is NULL
+ * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
+ */
+enum WatchdogReturnCode watchdogs_api_disable_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick);

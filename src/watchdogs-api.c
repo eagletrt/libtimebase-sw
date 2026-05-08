@@ -6,7 +6,7 @@
  * \brief Functions to manage watchdogs
  */
 
-#include "watchdogs.h"
+#include "watchdogs-api.h"
 
 EAGLETRT_STATIC int8_t prv_watchdog_compare(void *a, void *b) {
     const struct Watchdog *const f = *(struct Watchdog **)a;
@@ -32,7 +32,7 @@ EAGLETRT_STATIC int8_t prv_watchdog_compare(void *a, void *b) {
     return 1;
 }
 
-EAGLETRT_STATIC enum WatchdogReturnCode prv_watchdog_unregister(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog) {
+EAGLETRT_STATIC enum WatchdogReturnCode prv_watchdog_unregister(struct WatchdogHandler *watchdogs_handler, struct Watchdog *watchdog) {
     if (watchdogs_handler == NULL || watchdog == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
     }

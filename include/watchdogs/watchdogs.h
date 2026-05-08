@@ -11,6 +11,8 @@
 #define WATCHDOGS_H
 
 #include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 
 #include "arena-allocator-api.h"
 #include "min-heap-api.h"
