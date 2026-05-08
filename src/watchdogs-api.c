@@ -358,6 +358,8 @@ enum WatchdogReturnCode watchdogs_api_enable_module(struct WatchdogHandler *watc
 
     watchdogs_handler->watchdog_module_enabled = true;
 
+    // This looks like it breaks the heap but as it is a constant that is
+    // added to all the elements it does not change the order of the elements
     for (int i = 0; i < watchdogs_handler->scheduled_watchdogs.size; ++i) {
         struct Watchdog *watchdog = *(struct Watchdog **)((uint8_t *)watchdogs_handler->scheduled_watchdogs.data + watchdogs_handler->scheduled_watchdogs.data_size * i);
         watchdog->next_trigger = current_tick + (watchdog->next_trigger - watchdogs_handler->prev_tick);

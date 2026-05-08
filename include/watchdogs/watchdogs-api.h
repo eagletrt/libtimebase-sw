@@ -9,6 +9,9 @@
 
 #include "watchdogs.h"
 
+#ifndef WATCHDOGS_API_H
+#define WATCHDOGS_API_H
+
 /*!
  * \brief Initialize the watchdog module containing all the scheduled watchdogs
  *
@@ -188,3 +191,5 @@ enum WatchdogReturnCode watchdogs_api_enable_module(struct WatchdogHandler *watc
  * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
  */
 enum WatchdogReturnCode watchdogs_api_disable_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick);
+
+#endif /* WATCHDOGS_API_H */
