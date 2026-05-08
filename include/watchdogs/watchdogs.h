@@ -88,7 +88,7 @@ struct WatchdogHandler {
  *     - WATCHDOG_BUSY if the watchdog is already running
  *     - WATCHDOG_OK otherwise
  */
-enum WatchdogReturnCode watchdogs_api_module_init(
+enum WatchdogReturnCode watchdogs_api_init_module(
     WatchdogHandler *watchdogs_handler,
     uint32_t current_tick);
 
@@ -101,7 +101,7 @@ enum WatchdogReturnCode watchdogs_api_module_init(
  *     - WATCHDOG_NULL_POINTER if the watchdog or the internal expire pointers are NULL
  *     - WATCHDOG_OK otherwise
  */
-enum WatchdogReturnCode watchdogs_api_module_routine(WatchdogHandler *watchdogs_handler, uint32_t current_tick);
+enum WatchdogReturnCode watchdogs_api_routine(WatchdogHandler *watchdogs_handler, uint32_t current_tick);
 
 /*!
  * \brief Start a watchdog
@@ -202,4 +202,7 @@ enum WatchdogReturnCode watchdogs_api_watchdog_timeout(Watchdog *const watchdog)
  */
 bool watchdogs_api_watchdog_is_timed_out(Watchdog *const watchdog);
 
+enum WatchdogReturnCode watchdogs_api_enable_module();
+
+enum WatchdogReturnCode watchdogs_api_disable_module();
 #endif // WATCHDOGS_H
