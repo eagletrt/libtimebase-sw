@@ -8,6 +8,12 @@
 
 #include "watchdogs-api.h"
 
+/*!
+ * \brief Compare two watchdogs based on their next trigger time.
+ * \param a Pointer to the first watchdog.
+ * \param b Pointer to the second watchdog.
+ * \return -1 if the first watchdog should be scheduled before the second, 1 if after, 0 if equal.
+ */
 EAGLETRT_STATIC int8_t prv_watchdog_compare(void *a, void *b) {
     const struct Watchdog *const f = *(struct Watchdog **)a;
     const struct Watchdog *const s = *(struct Watchdog **)b;
@@ -32,6 +38,16 @@ EAGLETRT_STATIC int8_t prv_watchdog_compare(void *a, void *b) {
     return 1;
 }
 
+/*!
+ * \brief Unregister a watchdog from the system.
+ * \param watchdogs_handler Pointer to the watchdog handler.
+ * \param watchdog Pointer to the watchdog to unregister.
+ * \retval WATCHDOG_RC_OK if successful
+ * \retval WATCHDOG_RC_NULL_POINTER if the watchdog handler or the watchdog is NULL
+ * \retval WATCHDOG_RC_NOT_RUNNING if the watchdog is not running
+ * \retval WATCHDOG_RC_TIMED_OUT if the watchdog has already timed out
+ * \retval WATCHDOG_RC_ERROR if an error occurred during the execution of the function
+ */
 EAGLETRT_STATIC enum WatchdogReturnCode prv_watchdog_unregister(struct WatchdogHandler *watchdogs_handler, struct Watchdog *watchdog) {
     if (watchdogs_handler == NULL || watchdog == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
@@ -56,7 +72,7 @@ EAGLETRT_STATIC enum WatchdogReturnCode prv_watchdog_unregister(struct WatchdogH
     return WATCHDOG_RC_OK;
 }
 
-enum WatchdogReturnCode watchdogs_api_init_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
+enum WatchdogReturnCode watchdogs_api_init_pool(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
 
     if (watchdogs_handler == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
@@ -127,7 +143,7 @@ enum WatchdogReturnCode watchdogs_api_routine(struct WatchdogHandler *watchdogs_
     return WATCHDOG_RC_OK;
 }
 
-enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watchdog, uint32_t timeout, watchdog_timeout_callback_t callback) {
+enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watchdog, uint32_t timeout, watchdog_timeout_callback callback) {
     if (watchdog == NULL || callback == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
     }
@@ -348,7 +364,7 @@ bool watchdogs_api_watchdog_is_timed_out(struct Watchdog *const watchdog) {
     return (watchdog->watchdog_state == WATCHDOG_STATE_TIMED_OUT);
 }
 
-enum WatchdogReturnCode watchdogs_api_enable_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
+enum WatchdogReturnCode watchdogs_api_enable_pool(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
     if (watchdogs_handler == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
     }
@@ -368,7 +384,7 @@ enum WatchdogReturnCode watchdogs_api_enable_module(struct WatchdogHandler *watc
     return WATCHDOG_RC_OK;
 }
 
-enum WatchdogReturnCode watchdogs_api_disable_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
+enum WatchdogReturnCode watchdogs_api_disable_pool(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
     if (watchdogs_handler == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
     }

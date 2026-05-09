@@ -33,12 +33,12 @@ void print_watchdog_3(void) {
 int main(void) {
 
     /*
-     * Initialize the watchdog module with some watchdogs
+     * Initialize the watchdog pool with some watchdogs
      */
 
     struct WatchdogHandler watchdogs_handler;
 
-    watchdogs_api_init_module(&watchdogs_handler, 0U);
+    watchdogs_api_init_pool(&watchdogs_handler, 0U);
 
     struct Watchdog watchdog_1;
     struct Watchdog watchdog_2;
@@ -54,7 +54,7 @@ int main(void) {
 
     /*
      * Go trough some ticks to see initialized behaviour.
-     * We enable the module at tick 5
+     * We enable the pool at tick 5
      * At tick 10 watchdog 1 should fire
      * At tick 12 watchdog 2 should fire
      * At tick 15 watchdog 3 should fire
@@ -64,7 +64,7 @@ int main(void) {
     for (uint32_t i = 0; i <= 25; i++) {
 
         if (i == 5) {
-            watchdogs_api_enable_module(&watchdogs_handler, i);
+            watchdogs_api_enable_pool(&watchdogs_handler, i);
         }
 
         printf("Tick: %" PRId32 "  -> ", i);
@@ -74,8 +74,7 @@ int main(void) {
     }
 
     /*
-     * Pause watchdog 2 at tick 30 and see that it doesn't fire at tick 26
-     * and then pause it at tick 35, at tick 40 unpase and it should fire after 2 ticks
+     * Restart watchdog 2 at tick 30 and pause it at tick 35, unpausing it at 40 should make it fire at 42
      * 
      * At tick 35 restart also watchdog 3 that should fire after 10 ticks
      */
@@ -93,13 +92,15 @@ int main(void) {
         if (i == 35) {
             watchdogs_api_watchdog_pause(&watchdogs_handler, &watchdog_2, i);
         }
+        if (i == 40) {
+            watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_2, i);
+        }
 
         printf("\n");
     }
 
     /*
-     * If the module is disabled at tick 64, no watchdog should fire at tick 70, 
-     * but if we reenable it at tick 75 all the watchdogs should resume as if they were frozen.
+     * Restart all watchdogs at tick 60, then disable the pool at tick 64 and reenable it at tick 75.
      * 
      * watchdog 1 should fire at tick 76, watchdog 2 at tick 78 and watchdog 3 at tick 81
      */
@@ -111,11 +112,11 @@ int main(void) {
     for (uint32_t i = 61; i <= 100; i++) {
 
         if (i == 64) {
-            watchdogs_api_disable_module(&watchdogs_handler, i);
+            watchdogs_api_disable_pool(&watchdogs_handler, i);
         }
 
         if (i == 75) {
-            watchdogs_api_enable_module(&watchdogs_handler, i);
+            watchdogs_api_enable_pool(&watchdogs_handler, i);
         }
 
         printf("Tick: %" PRId32 "  -> ", i);
@@ -130,9 +131,7 @@ int main(void) {
 
     /*
      * Expected behaviour:
-     * Then we increment the tick by a random amount between 1 and 5 until tick 130
-     * Then watchdog 1 should fire every 5 ticks and watchdog 2 every 7 ticks.
-     * At tick 100 all watchdogs are restarted
+     * At tick 100 all watchdogs are restarted, watchdog 1 should fire at tick 105, watchdog 2 at tick 107 and watchdog 3 at tick 110
      */
 
     watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_1, 100U);

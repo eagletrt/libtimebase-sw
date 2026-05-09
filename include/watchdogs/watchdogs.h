@@ -50,7 +50,7 @@ enum WatchdogState {
  * 
  * \details When the watchdog times-out it unregister itself from the timebase automatically
  */
-typedef void (*watchdog_timeout_callback_t)(void);
+typedef void (*watchdog_timeout_callback)(void);
 
 /*!
  * \brief Definiton of a single watchdog
@@ -64,7 +64,7 @@ struct Watchdog {
 
     enum WatchdogState watchdog_state; /*!< The state of the watchdog */
 
-    watchdog_timeout_callback_t watchdog_callback; /*!< The function that is called when the watchdog times-out */
+    watchdog_timeout_callback watchdog_callback; /*!< The function that is called when the watchdog times-out */
 
     uint32_t timeout; /*!< The number of ticks that should elapse for the watchdog to time-out */
 

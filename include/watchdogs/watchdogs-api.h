@@ -22,7 +22,7 @@
  * \retval WATCHDOG_RC_ERROR An error occurred during the initialization of the watchdog handler
  * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_init_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick);
+enum WatchdogReturnCode watchdogs_api_init_pool(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick);
 
 /*!
  * \brief The routine that should be called periodically to check if any watchdog has timed out and execute the corresponding callback
@@ -49,7 +49,7 @@ enum WatchdogReturnCode watchdogs_api_routine(struct WatchdogHandler *watchdogs_
  * \retval WATCHDOG_RC_ERROR An error occurred during the initialization of the watchdog
  * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watchdog, uint32_t timeout, watchdog_timeout_callback_t callback);
+enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watchdog, uint32_t timeout, watchdog_timeout_callback callback);
 
 /*!
  * \brief Start a watchdog
@@ -178,7 +178,7 @@ bool watchdogs_api_watchdog_is_timed_out(struct Watchdog *const watchdog);
  * \retval WATCHDOG_RC_NULL_POINTER The watchdog handler is NULL
  * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
  */
-enum WatchdogReturnCode watchdogs_api_enable_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick);
+enum WatchdogReturnCode watchdogs_api_enable_pool(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick);
 
 /*!
  * \brief Disable a watchdog module, the watchdogs are frozen until the module is enabled again
@@ -190,6 +190,6 @@ enum WatchdogReturnCode watchdogs_api_enable_module(struct WatchdogHandler *watc
  * \retval WATCHDOG_RC_NULL_POINTER The watchdog handler is NULL
  * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
  */
-enum WatchdogReturnCode watchdogs_api_disable_module(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick);
+enum WatchdogReturnCode watchdogs_api_disable_pool(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick);
 
 #endif /* WATCHDOGS_API_H */

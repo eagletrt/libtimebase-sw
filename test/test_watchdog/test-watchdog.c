@@ -26,16 +26,16 @@ FAKE_VOID_FUNC(watchdog_callback_1);
 FAKE_VOID_FUNC(watchdog_callback_2);
 FAKE_VOID_FUNC(watchdog_callback_3);
 
-void test_watchdogs_init_module_with_null_handler_returns_error(void) {
-    enum WatchdogReturnCode rc = watchdogs_api_init_module(NULL, 0U);
+void test_watchdogs_init_pool_with_null_handler_returns_error(void) {
+    enum WatchdogReturnCode rc = watchdogs_api_init_pool(NULL, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
 
-void test_watchdogs_init_module_with_valid_handler_returns_ok(void) {
+void test_watchdogs_init_pool_with_valid_handler_returns_ok(void) {
     struct WatchdogHandler handler;
 
-    enum WatchdogReturnCode rc = watchdogs_api_init_module(&handler, 42U);
+    enum WatchdogReturnCode rc = watchdogs_api_init_pool(&handler, 42U);
 
     TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(42U, handler.prev_tick, "prev_tick should be set to current_tick");
@@ -495,7 +495,7 @@ void test_watchdogs_routine_with_empty_heap_returns_ok(void) {
 }
 
 void test_watchdogs_routine_does_not_fire_before_timeout(void) {
-    watchdogs_api_enable_module(&watchdogs_handler, 0U);
+    watchdogs_api_enable_pool(&watchdogs_handler, 0U);
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
     watchdogs_api_routine(&watchdogs_handler, watchdog_1.timeout - 1U);
@@ -505,7 +505,7 @@ void test_watchdogs_routine_does_not_fire_before_timeout(void) {
 }
 
 void test_watchdogs_routine_fires_callback_at_timeout(void) {
-    watchdogs_api_enable_module(&watchdogs_handler, 0U);
+    watchdogs_api_enable_pool(&watchdogs_handler, 0U);
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
     watchdogs_api_routine(&watchdogs_handler, watchdog_1.timeout);
@@ -515,7 +515,7 @@ void test_watchdogs_routine_fires_callback_at_timeout(void) {
 }
 
 void test_watchdogs_routine_fires_multiple_expired_watchdogs(void) {
-    watchdogs_api_enable_module(&watchdogs_handler, 0U);
+    watchdogs_api_enable_pool(&watchdogs_handler, 0U);
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_2, 0U);
 
@@ -526,7 +526,7 @@ void test_watchdogs_routine_fires_multiple_expired_watchdogs(void) {
 }
 
 void test_watchdogs_routine_does_not_fire_non_expired_watchdog(void) {
-    watchdogs_api_enable_module(&watchdogs_handler, 0U);
+    watchdogs_api_enable_pool(&watchdogs_handler, 0U);
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_3, 0U);
 
@@ -545,7 +545,7 @@ void test_watchdogs_routine_updates_prev_tick(void) {
 }
 
 void test_watchdogs_routine_removes_timed_out_watchdogs_from_heap(void) {
-    watchdogs_api_enable_module(&watchdogs_handler, 0U);
+    watchdogs_api_enable_pool(&watchdogs_handler, 0U);
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
     watchdogs_api_routine(&watchdogs_handler, watchdog_1.timeout);
@@ -553,75 +553,75 @@ void test_watchdogs_routine_removes_timed_out_watchdogs_from_heap(void) {
     TEST_ASSERT_TRUE_MESSAGE(min_heap_api_is_empty(&watchdogs_handler.scheduled_watchdogs), "Heap should be empty after processing timed out watchdog");
 }
 
-void test_watchdogs_enable_module_with_null_handler_returns_error(void) {
-    enum WatchdogReturnCode rc = watchdogs_api_enable_module(NULL, 0U);
+void test_watchdogs_enable_pool_with_null_handler_returns_error(void) {
+    enum WatchdogReturnCode rc = watchdogs_api_enable_pool(NULL, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
 
-void test_watchdogs_enable_module_with_past_tick_returns_temporal_discontinuity(void) {
+void test_watchdogs_enable_pool_with_past_tick_returns_temporal_discontinuity(void) {
     watchdogs_handler.prev_tick = 10U;
 
-    enum WatchdogReturnCode rc = watchdogs_api_enable_module(&watchdogs_handler, 5U);
+    enum WatchdogReturnCode rc = watchdogs_api_enable_pool(&watchdogs_handler, 5U);
 
     TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
 }
 
-void test_watchdogs_enable_module_sets_enabled_flag(void) {
+void test_watchdogs_enable_pool_sets_enabled_flag(void) {
     watchdogs_handler.watchdog_module_enabled = false;
 
-    watchdogs_api_enable_module(&watchdogs_handler, 0U);
+    watchdogs_api_enable_pool(&watchdogs_handler, 0U);
 
     TEST_ASSERT_TRUE_MESSAGE(watchdogs_handler.watchdog_module_enabled, "Module should be enabled");
 }
 
-void test_watchdogs_enable_module_adjusts_next_trigger_times(void) {
+void test_watchdogs_enable_pool_adjusts_next_trigger_times(void) {
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
     uint32_t original_trigger = watchdog_1.next_trigger;
     watchdogs_handler.watchdog_module_enabled = false;
     watchdogs_handler.prev_tick = 0U;
 
-    watchdogs_api_enable_module(&watchdogs_handler, 10U);
+    watchdogs_api_enable_pool(&watchdogs_handler, 10U);
 
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(original_trigger + 10U, watchdog_1.next_trigger, "next_trigger should be shifted by the elapsed frozen time");
 }
 
-void test_watchdogs_disable_module_with_null_handler_returns_error(void) {
-    enum WatchdogReturnCode rc = watchdogs_api_disable_module(NULL, 0U);
+void test_watchdogs_disable_pool_with_null_handler_returns_error(void) {
+    enum WatchdogReturnCode rc = watchdogs_api_disable_pool(NULL, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
 }
 
-void test_watchdogs_disable_module_with_past_tick_returns_temporal_discontinuity(void) {
+void test_watchdogs_disable_pool_with_past_tick_returns_temporal_discontinuity(void) {
     watchdogs_handler.prev_tick = 10U;
 
-    enum WatchdogReturnCode rc = watchdogs_api_disable_module(&watchdogs_handler, 5U);
+    enum WatchdogReturnCode rc = watchdogs_api_disable_pool(&watchdogs_handler, 5U);
 
     TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
 }
 
-void test_watchdogs_disable_module_clears_enabled_flag(void) {
+void test_watchdogs_disable_pool_clears_enabled_flag(void) {
     watchdogs_handler.watchdog_module_enabled = true;
 
-    watchdogs_api_disable_module(&watchdogs_handler, 0U);
+    watchdogs_api_disable_pool(&watchdogs_handler, 0U);
 
     TEST_ASSERT_FALSE_MESSAGE(watchdogs_handler.watchdog_module_enabled, "Module should be disabled");
 }
 
-void test_watchdogs_disable_module_updates_prev_tick(void) {
+void test_watchdogs_disable_pool_updates_prev_tick(void) {
     watchdogs_handler.prev_tick = 0U;
 
-    watchdogs_api_disable_module(&watchdogs_handler, 50U);
+    watchdogs_api_disable_pool(&watchdogs_handler, 50U);
 
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(50U, watchdogs_handler.prev_tick, "prev_tick should be updated when module is disabled");
 }
 
 void test_watchdogs_disable_then_enable_freezes_time_correctly(void) {
-    watchdogs_api_enable_module(&watchdogs_handler, 0U);
+    watchdogs_api_enable_pool(&watchdogs_handler, 0U);
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
-    watchdogs_api_disable_module(&watchdogs_handler, 5U);
-    watchdogs_api_enable_module(&watchdogs_handler, 15U);
+    watchdogs_api_disable_pool(&watchdogs_handler, 5U);
+    watchdogs_api_enable_pool(&watchdogs_handler, 15U);
 
     watchdogs_api_routine(&watchdogs_handler, watchdog_1.timeout + 9U);
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, watchdog_callback_1_fake.call_count, "Callback should not fire while time was frozen");
@@ -636,7 +636,7 @@ void setUp(void) {
     memset(&watchdog_2, 0, sizeof(watchdog_2));
     memset(&watchdog_3, 0, sizeof(watchdog_3));
 
-    watchdogs_api_init_module(&watchdogs_handler, 0U);
+    watchdogs_api_init_pool(&watchdogs_handler, 0U);
     watchdogs_api_init_watchdog(&watchdog_1, 100U, watchdog_callback_1);
     watchdogs_api_init_watchdog(&watchdog_2, 100U, watchdog_callback_2);
     watchdogs_api_init_watchdog(&watchdog_3, 200U, watchdog_callback_3);
@@ -653,8 +653,8 @@ int main(void) {
     UNITY_BEGIN();
 
     // INIT MODULE TESTS
-    RUN_TEST(test_watchdogs_init_module_with_null_handler_returns_error);
-    RUN_TEST(test_watchdogs_init_module_with_valid_handler_returns_ok);
+    RUN_TEST(test_watchdogs_init_pool_with_null_handler_returns_error);
+    RUN_TEST(test_watchdogs_init_pool_with_valid_handler_returns_ok);
 
     // INIT WATCHDOG TESTS
     RUN_TEST(test_watchdogs_init_watchdog_with_null_watchdog_returns_error);
@@ -741,16 +741,16 @@ int main(void) {
     RUN_TEST(test_watchdogs_routine_removes_timed_out_watchdogs_from_heap);
 
     // ENABLE MODULE TESTS
-    RUN_TEST(test_watchdogs_enable_module_with_null_handler_returns_error);
-    RUN_TEST(test_watchdogs_enable_module_with_past_tick_returns_temporal_discontinuity);
-    RUN_TEST(test_watchdogs_enable_module_sets_enabled_flag);
-    RUN_TEST(test_watchdogs_enable_module_adjusts_next_trigger_times);
+    RUN_TEST(test_watchdogs_enable_pool_with_null_handler_returns_error);
+    RUN_TEST(test_watchdogs_enable_pool_with_past_tick_returns_temporal_discontinuity);
+    RUN_TEST(test_watchdogs_enable_pool_sets_enabled_flag);
+    RUN_TEST(test_watchdogs_enable_pool_adjusts_next_trigger_times);
 
     // DISABLE MODULE TESTS
-    RUN_TEST(test_watchdogs_disable_module_with_null_handler_returns_error);
-    RUN_TEST(test_watchdogs_disable_module_with_past_tick_returns_temporal_discontinuity);
-    RUN_TEST(test_watchdogs_disable_module_clears_enabled_flag);
-    RUN_TEST(test_watchdogs_disable_module_updates_prev_tick);
+    RUN_TEST(test_watchdogs_disable_pool_with_null_handler_returns_error);
+    RUN_TEST(test_watchdogs_disable_pool_with_past_tick_returns_temporal_discontinuity);
+    RUN_TEST(test_watchdogs_disable_pool_clears_enabled_flag);
+    RUN_TEST(test_watchdogs_disable_pool_updates_prev_tick);
     RUN_TEST(test_watchdogs_disable_then_enable_freezes_time_correctly);
 
     return UNITY_END();
