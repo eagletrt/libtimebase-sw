@@ -158,19 +158,14 @@ enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList
         return TASKS_RC_ERROR;
     };
 
-    uint8_t actual_num_tasks = 0;
-
-    for (uint8_t i = 0; i < num_tasks && t_list[i].task_function != NULL; ++i) {
-        if (t_list[i].task_id != i || t_list[i].task_state == TASKS_STATE_PAUSED) {
+    for (uint8_t i = 0; i < num_tasks; ++i) {
+        if (t_list[i].task_id != i ||
+            t_list[i].task_state == TASKS_STATE_PAUSED ||
+            t_list[i].task_function == NULL) {
             return TASKS_RC_INVALID_LIST;
         }
         tasks_handler->task_list[i] = t_list[i];
         tasks_handler->task_list[i].int_repeats = t_list[i].repeats;
-        ++actual_num_tasks;
-    }
-
-    if (actual_num_tasks != num_tasks) {
-        return TASKS_RC_INVALID_LIST;
     }
 
     tasks_handler->task_num = num_tasks;

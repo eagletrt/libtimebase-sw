@@ -118,15 +118,18 @@ int main(void) {
 
     tasks_api_pause_task(&tasks_handler, PRINT_TASK_2, 25U);
 
-    // Update and start task 3 to run 5 times with an interval of 3 ticks and an immediate start, so it should fire at ticks 26, 29, 32, 35 and 38
+    // Update and start task 3 to run 5 times with an interval of 3 ticks and an immediate start, so it should fire at ticks 25, 28, 31, 34 and 37
     tasks_api_update_task(&tasks_handler, PRINT_TASK_3, 3U, 0U, 5U, 25U);
     tasks_api_enable_task(&tasks_handler, PRINT_TASK_3, 25U);
+
     /*
      * Pause task 2 at tick 25 and see that it doesn't fire at tick 26
      * and then reenable it at tick 35, at which point it should fire after 1 tick and then every 7 ticks as before.
      * once resumed at tick 35 it should fire after 5 ticks.
+     * 
+     * Task 1 should continue firing every 5 ticks as before.     
      */
-    for (uint32_t i = 26; i <= 60; i++) {
+    for (uint32_t i = 25; i <= 60; i++) {
 
         if (i == 35) {
             tasks_api_enable_task(&tasks_handler, PRINT_TASK_2, i);
@@ -142,6 +145,7 @@ int main(void) {
      * If the module is disabled at tick 65, no task should fire at tick 70, 
      * but if we reenable it at tick 76 all the tasks should resume as if they were frozen.
      */
+
     for (uint32_t i = 61; i <= 100; i++) {
 
         if (i == 65) {
