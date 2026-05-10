@@ -45,11 +45,12 @@ enum TaskState {
 struct Task {
     uint8_t task_id;               /*!< The ID of the task*/
     enum TaskState task_state;     /*!< The state of the task*/
-    bool one_shot;                 /*!< Whether the task is a one-shot task*/
+    uint8_t repeats;               /*!< The amount of time the task will fire (0 = infinite, 1 = one shot, ecc...)*/
     task_definition task_function; /*!< The callback of the task*/
     uint16_t task_interval;        /*!< The interval in-between task calls. */
     uint16_t task_start;           /*!< The delay from when task enabled gets set to when the task activates for the first time*/
 
+    uint8_t int_repeats;   /*!< The original amount of repeats*/
     uint32_t last_update;  /*!< The last time the task was updated, in ticks (used for pause)*/
     uint32_t next_trigger; /*!< The next time when the task should be called, in ticks */
 };

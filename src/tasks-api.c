@@ -98,9 +98,10 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
         // (task->next_trigger - task->last_update) is the remaining time to the next trigger when the task was paused, if the task was paused and there is still time to wait before the next trigger,
         // we can just add that remaining time to the current tick to get the new trigger time,
         // otherwise we can just calculate the trigger time from the start time of the task
-        if (from == TASKS_STATE_PAUSED && (int)(task->next_trigger - task->last_update) > 0) {
+        if (from == TASKS_STATE_PAUSED && (int)(task->next_trigger - task->last_update) >= 0) {
             task->next_trigger = tick + (task->next_trigger - task->last_update);
         } else {
+            tasks_handler->task_list[task_id].repeats = tasks_handler->task_list[task_id].int_repeats;
             task->next_trigger = tick + task->task_start;
         }
         if (min_heap_api_insert(&tasks_handler->scheduled_tasks, &task) != MIN_HEAP_RC_OK) {
@@ -164,6 +165,7 @@ enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList
             return TASKS_RC_INVALID_LIST;
         }
         tasks_handler->task_list[i] = t_list[i];
+        tasks_handler->task_list[i].int_repeats = t_list[i].repeats;
         ++actual_num_tasks;
     }
 
@@ -215,7 +217,11 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
 
         next_task->last_update = current_tick;
 
-        if (!next_task->one_shot) {
+        if (next_task->int_repeats > 0) {
+            --(next_task->repeats);
+        }
+
+        if (next_task->repeats > 0 || next_task->int_repeats == 0) {
 
             // Update the next trigger time
             next_task->next_trigger += EAGLETRT_API_MAX(next_task->task_interval, 1U);
@@ -225,7 +231,7 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
                 return TASKS_RC_ERROR;
             }
         } else {
-            // For one-shot tasks, just update the state to disabled and don't reinsert it into the heap
+            // For expired tasks, just update the state to disabled and don't reinsert it into the heap
             next_task->task_state = TASKS_STATE_DISABLED;
             tasks_handler->actual_state[next_task->task_id] = TASKS_STATE_DISABLED;
         }
@@ -299,7 +305,7 @@ enum TasksReturnCode tasks_api_disable_task(struct TasksHandler *tasks_handler, 
     return prv_handle_task_transition(tasks_handler, task_id, current_tick);
 }
 
-enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, const uint8_t task_id, uint16_t new_interval, uint16_t new_start, bool one_shot, uint32_t current_tick) {
+enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, const uint8_t task_id, uint16_t new_interval, uint16_t new_start, uint8_t repeats, uint32_t current_tick) {
     if (tasks_handler == NULL) {
         return TASKS_RC_NULL_POINTER;
     }
@@ -314,7 +320,8 @@ enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, c
 
     task->task_interval = new_interval;
     task->task_start = new_start;
-    task->one_shot = one_shot;
+    task->int_repeats = repeats;
+    task->repeats = repeats;
 
     // Disable and reenable the task to update the heap with the new information
     enum TaskState original_state = task->task_state;

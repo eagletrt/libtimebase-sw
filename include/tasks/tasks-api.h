@@ -108,7 +108,7 @@ enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint
  * \param task_id The identifier of the task
  * \param new_interval The new interval of the task
  * \param new_start The new start time of the task
- * \param one_shot Whether the task is a one-shot task or not
+ * \param repeats The amount of times the task will fire (0 = infinite, 1 = one-shot, ecc...)
  * \param current_tick The current tick count
  * 
  * \retval TASKS_RC_OK The operation was successful
@@ -117,7 +117,7 @@ enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint
  * \retval TASKS_RC_ERROR An error occurred during the operation
  * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
-enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, const uint8_t task_id, uint16_t new_interval, uint16_t new_start, bool one_shot, uint32_t current_tick);
+enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, const uint8_t task_id, uint16_t new_interval, uint16_t new_start, uint8_t repeats, uint32_t current_tick);
 
 /*!
  * \brief Enable the tasks module

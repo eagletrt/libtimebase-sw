@@ -47,7 +47,7 @@ void init_tasks_module(struct TasksHandler *task_handler) {
         // Enabled default task, not one-shot, immediate start, interval of 5 ticks
         {
             .task_id = PRINT_TASK_1,
-            .one_shot = false,
+            .repeats = 0,
             .task_function = print_task_1,
             .task_interval = 5U,
             .task_state = TASKS_STATE_ENABLED,
@@ -65,7 +65,7 @@ void init_tasks_module(struct TasksHandler *task_handler) {
         // Enabled one-shot task, start delayed by 10 ticks, interval of 5 ticks (ignored since one-shot)
         {
             .task_id = PRINT_TASK_3,
-            .one_shot = true,
+            .repeats = 1,
             .task_function = print_task_3,
             .task_interval = 5U,
             .task_state = TASKS_STATE_ENABLED,
@@ -118,18 +118,18 @@ int main(void) {
 
     tasks_api_pause_task(&tasks_handler, PRINT_TASK_2, 25U);
 
+    // Update and start task 3 to run 5 times with an interval of 3 ticks and an immediate start, so it should fire at ticks 26, 29, 32, 35 and 38
+    tasks_api_update_task(&tasks_handler, PRINT_TASK_3, 3U, 0U, 5U, 25U);
+    tasks_api_enable_task(&tasks_handler, PRINT_TASK_3, 25U);
     /*
      * Pause task 2 at tick 25 and see that it doesn't fire at tick 26
      * and then reenable it at tick 35, at which point it should fire after 1 tick and then every 7 ticks as before.
      * once resumed at tick 35 it should fire after 5 ticks.
-     * 
-     * At tick 35 enable also task 3 that should fire after 10 ticks and then never again
      */
     for (uint32_t i = 26; i <= 60; i++) {
 
         if (i == 35) {
             tasks_api_enable_task(&tasks_handler, PRINT_TASK_2, i);
-            tasks_api_enable_task(&tasks_handler, PRINT_TASK_3, i);
         }
 
         printf("Tick: %" PRId32 "  -> ", i);
