@@ -24,19 +24,19 @@ Once initialized, the user can enable, disable, pause and update the tasks as ne
 The use of an enumerator is greatly recommended to define the task IDs, this way the code will be more readable and less error prone, but it is not mandatory as long as the user ensures that the task IDs are unique and sequential starting from 0. The required parameters for each task are the following:
  - `task_id`: the unique identifier of the task, this value must be unique and sequential starting from 0, it is used to identify the task in the API functions. (REQUIRED)
  - `task_state`: the initial state of the task, this value can be either enabled or disabled, if the task is enabled at initialization it will be scheduled to run for the first time at `current_tick + start`, where `start` is the start time of the task in ticks.
- - `one_shot`: a boolean value that indicates if the task is one-shot or not, if it is true the task will be automatically disabled after running for the first time, if it is false the task will be rescheduled to run again after `interval` ticks.
+ - `repeats`: an integer value that indicates the number of times the task should repeat, if it is 0 the task will repeat indefinitely.
  - `task_function`: a pointer to a function that will be called when the task is triggered, this function must be defined by the user and it must have the following signature: `void callback(void)`. (REQUIRED)
- - `task_interval`: the interval time of the task in ticks, this value is used to calculate the next trigger time of the task after it has been triggered for the first time, if the task is one-shot this value is ignored (if not initialized or set to 0 then it will be treated as 1).
+ - `task_interval`: the interval time of the task in ticks, this value is used to calculate the next trigger time of the task after it has been triggered for the first time (if not initialized or set to 0 then it will be treated as 1).
  - `task_start`: the start time of the task in ticks, this value is used to calculate the next trigger time of the task when it is enabled.
 
 All the fields marked as required must be initialized by the user, otherwise the initialization will fail.
 
 Tasks cannot be paused at initialization, they can only be enabled or disabled. If a task is enabled at initialization, it will be scheduled to run for the first time at `current_tick + start`, where `start` is the start time of the task in ticks.
 
-When a task is enabled, it will be scheduled to run for the first time at `current_tick + start`, where `start` is the start time of the task in ticks. If the task is one-shot, it will be automatically disabled after running for the first time. If the task is not one-shot, it will be rescheduled to run again after `interval` ticks.
+When a task is enabled, it will be scheduled to run for the first time at `current_tick + start`, where `start` is the start time of the task in ticks. If the task has repeats, it will be automatically disabled after running for n times. If the task is not one-shot, it will be rescheduled to run again after `interval` ticks.
 
 When a task is paused, it will not run until it is enabled again. When a paused task is enabled again, it will be scheduled to run for the first time at `current_tick + remaining_time`, where `remaining_time` is the remaining time until the next trigger of the task at the moment of pausing.
-If a one shot task is paused before it is triggered for the first time, when it is enabled again it will be scheduled to run for the first time at `current_tick + remaining_time`, where `remaining_time` is the remaining time until the next trigger of the task at the moment of pausing. If a one shot task is paused after it is triggered for the first time, when it is enabled again it will be scheduled to run for the first time at `current_tick + start`, where `start` is the start time of the task in ticks.
+If a task with repeats is paused before it is triggered, when it is enabled again it will be scheduled to run for the first time at `current_tick + remaining_time`, where `remaining_time` is the remaining time until the next trigger of the task at the moment of pausing. If a repeats task is paused after it is triggered for the last time, when it is enabled again it will be scheduled to run for the first time at `current_tick + start`, where `start` is the start time of the task in ticks with the initial repeats reset.
 
 A disabled task can be paused and then enabled, in this case it will act as if it was paused at the moment of disabling, so when it is enabled again it will be scheduled to run for the first time at `current_tick + remaining_time`, where `remaining_time` is the remaining time until the next trigger of the task at the moment of disabling.
 The same can be done from paused to disabled and then enabled again, in this case the behavior will be the same as a disabled task that is enabled again, so it will be scheduled to run for the first time at `current_tick + start`.
@@ -44,8 +44,3 @@ The same can be done from paused to disabled and then enabled again, in this cas
 If the module is disabled the tasks will act as if they were frozen, so when the module is enabled again the tasks will be scheduled to run for the first time at `current_tick + remaining_time`, where `remaining_time` is the remaining time until the next trigger of the task at the moment of disabling.
 
 If a task is updated while it is enabled, it will be rescheduled to run for the first time at `current_tick + new_start`, where `new_start` is the new start time of the task in ticks. If it isn't then the state will not change.
-
-## Scripts
-The library includes some scripts to compile and run the tests and examples, these scripts are located in the `scripts` folder and they are named `run-tests.sh` and `run-examples.sh`. These scripts will compile and run all the tests and examples respectively, they can be executed from the root of the project with the following commands:
- - `./scripts/run-tests.sh`
- - `./scripts/run-examples.sh <test_name_without_extension>`
