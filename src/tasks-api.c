@@ -63,7 +63,7 @@ int8_t prv_task_compare(void *a, void *b) {
  * \retval TASKS_RC_ERROR problems were encountered when accessing the heap
  * \retval TASKS_RC_OK the function executed correctly
  */
-EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHandler *tasks_handler, int8_t task_id, uint32_t tick) {
+EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t tick) {
 
     if (tasks_handler == NULL) {
         return TASKS_RC_NULL_POINTER;
@@ -257,6 +257,9 @@ enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, u
     if (task_id >= tasks_handler->task_num) {
         return TASKS_RC_INVALID_ID;
     }
+    if (tasks_handler->task_module_enabled == false) {
+        return TASKS_RC_DISABLED;
+    }
 
     tasks_handler->task_list[task_id].task_state = TASKS_STATE_ENABLED;
 
@@ -274,6 +277,9 @@ enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, ui
     }
     if (task_id >= tasks_handler->task_num) {
         return TASKS_RC_INVALID_ID;
+    }
+    if (tasks_handler->task_module_enabled == false) {
+        return TASKS_RC_DISABLED;
     }
 
     tasks_handler->task_list[task_id].task_state = TASKS_STATE_PAUSED;
@@ -293,6 +299,9 @@ enum TasksReturnCode tasks_api_disable_task(struct TasksHandler *tasks_handler, 
     if (task_id >= tasks_handler->task_num) {
         return TASKS_RC_INVALID_ID;
     }
+    if (tasks_handler->task_module_enabled == false) {
+        return TASKS_RC_DISABLED;
+    }
 
     tasks_handler->task_list[task_id].task_state = TASKS_STATE_DISABLED;
 
@@ -311,6 +320,9 @@ enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, c
     if (task_id >= tasks_handler->task_num) {
         return TASKS_RC_INVALID_ID;
     }
+    if (tasks_handler->task_module_enabled == false) {
+        return TASKS_RC_DISABLED;
+    }
 
     struct Task *task = &tasks_handler->task_list[task_id];
 
@@ -323,6 +335,7 @@ enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, c
     enum TaskState original_state = task->task_state;
 
     if (original_state != TASKS_STATE_ENABLED) {
+        tasks_handler->prev_tick = current_tick;
         return TASKS_RC_OK;
     }
 
@@ -377,6 +390,9 @@ enum TasksReturnCode tasks_api_disable_module(struct TasksHandler *tasks_handler
     }
     if (current_tick < tasks_handler->prev_tick) {
         return TASKS_RC_TEMPORAL_DISCONTINUITY;
+    }
+    if (tasks_handler->task_module_enabled == false) {
+        return TASKS_RC_OK;
     }
 
     tasks_handler->prev_tick = current_tick;
