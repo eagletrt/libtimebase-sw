@@ -39,7 +39,6 @@ int8_t prv_task_compare(void *a, void *b) {
         return 1;
     }
     return 0;
-    return 1;
 }
 
 /*!
