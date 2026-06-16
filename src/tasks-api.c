@@ -101,7 +101,7 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
         // (task->next_trigger - task->last_update) is the remaining time to the next trigger when the task was paused, if the task was paused and there is still time to wait before the next trigger,
         // we can just add that remaining time to the current tick to get the new trigger time,
         // otherwise we can just calculate the trigger time from the start time of the task
-        if (from == TASKS_STATE_PAUSED && (uint32_t)(task->next_trigger - task->last_update) >= 0) {
+        if (from == TASKS_STATE_PAUSED && (int32_t)(task->next_trigger - task->last_update) >= 0) {
             task->next_trigger = tick + (task->next_trigger - task->last_update);
         } else {
             tasks_handler->task_list[task_id].repeats = tasks_handler->task_list[task_id].int_repeats;
