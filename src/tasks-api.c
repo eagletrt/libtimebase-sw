@@ -29,8 +29,6 @@ int8_t prv_task_compare(void *a, void *b) {
     /**************************************************************************
      * For the equality check, in addition to the ticks, the pointers to the
      * task must also be equal, otherwise -1 or 1 may be returned
-     * In this case 1 is preferred because it avoid useless swaps between
-     * elements that have the same number of ticks
      ***************************************************************************/
     if (f->task_id < s->task_id) {
         return -1;
