@@ -32,9 +32,13 @@ int8_t prv_task_compare(void *a, void *b) {
      * In this case 1 is preferred because it avoid useless swaps between
      * elements that have the same number of ticks
      ***************************************************************************/
-    if (f->task_function == s->task_function) {
-        return 0;
+    if (f->task_id < s->task_id) {
+        return -1;
     }
+    if (f->task_id > s->task_id) {
+        return 1;
+    }
+    return 0;
     return 1;
 }
 
@@ -98,7 +102,7 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
         // (task->next_trigger - task->last_update) is the remaining time to the next trigger when the task was paused, if the task was paused and there is still time to wait before the next trigger,
         // we can just add that remaining time to the current tick to get the new trigger time,
         // otherwise we can just calculate the trigger time from the start time of the task
-        if (from == TASKS_STATE_PAUSED && (int)(task->next_trigger - task->last_update) >= 0) {
+        if (from == TASKS_STATE_PAUSED && (uint32_t)(task->next_trigger - task->last_update) >= 0) {
             task->next_trigger = tick + (task->next_trigger - task->last_update);
         } else {
             tasks_handler->task_list[task_id].repeats = tasks_handler->task_list[task_id].int_repeats;
@@ -217,7 +221,7 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
             --(next_task->repeats);
         }
 
-        if (next_task->repeats > 0 || next_task->int_repeats == 0) {
+        if ((next_task->repeats > 0 || next_task->int_repeats == 0) && next_task->task_state == TASKS_STATE_ENABLED) {
 
             // Update the next trigger time
             next_task->next_trigger += EAGLETRT_API_MAX(next_task->task_interval, 1U);
@@ -342,6 +346,7 @@ enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, c
     task->task_state = TASKS_STATE_DISABLED;
     enum TasksReturnCode rc = prv_handle_task_transition(tasks_handler, task_id, current_tick);
     if (rc != TASKS_RC_OK) {
+        task->task_state = original_state; // Restore the original state in case of error
         return rc;
     }
     task->task_state = original_state;

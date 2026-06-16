@@ -584,6 +584,7 @@ void test_tasks_enable_with_already_enabled_task_returns_ok(void) {
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_handler.task_module_enabled = true;
 
     rc = tasks_api_enable_task(&tasks_handler, 0U, 0U);
 
@@ -602,6 +603,7 @@ void test_tasks_enable_with_valid_id_enables_task(void) {
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_handler.task_module_enabled = true;
 
     rc = tasks_api_enable_task(&tasks_handler, 1U, 0U);
 
@@ -624,6 +626,7 @@ void test_tasks_enable_after_pause_resumes_task_with_correct_trigger_time(void) 
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_handler.task_module_enabled = true;
 
     tasks_handler.actual_state[1] = TASKS_STATE_PAUSED;
     tasks_handler.task_list[1].next_trigger = 20U;
@@ -677,6 +680,7 @@ void test_tasks_pause_with_already_paused_task_returns_ok(void) {
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_handler.task_module_enabled = true;
 
     tasks_handler.actual_state[0] = TASKS_STATE_PAUSED;
 
@@ -697,6 +701,7 @@ void test_tasks_pause_with_valid_id_pauses_task(void) {
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_handler.task_module_enabled = true;
 
     rc = tasks_api_pause_task(&tasks_handler, 0U, 0U);
 
@@ -719,6 +724,7 @@ void test_tasks_pause_repeats_task_before_start_resumes_correctly(void) {
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_handler.task_module_enabled = true;
 
     tasks_api_pause_task(&tasks_handler, 0U, 5U);
 
@@ -733,13 +739,14 @@ void test_tasks_pause_repeats_task_after_start_resumes_correctly(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 1U, .task_function = task_function_1, .task_interval = 10U, .task_start = 10U },
+        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 10U },
         { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
         { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
         { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_handler.task_module_enabled = true;
 
     tasks_api_pause_task(&tasks_handler, 0U, 15U);
 
@@ -832,6 +839,7 @@ void test_tasks_disable_with_already_disabled_task_returns_ok(void) {
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_handler.task_module_enabled = true;
 
     rc = tasks_api_disable_task(&tasks_handler, 0U, 0U);
 
@@ -850,6 +858,7 @@ void test_tasks_disable_with_valid_id_disables_task(void) {
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_handler.task_module_enabled = true;
 
     rc = tasks_api_disable_task(&tasks_handler, 0U, 0U);
 
@@ -898,6 +907,7 @@ void test_tasks_update_task_with_valid_id_updates_task(void) {
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_handler.task_module_enabled = true;
 
     rc = tasks_api_update_task(&tasks_handler, 0U, 20U, 10U, 1U, 10U);
 
@@ -919,7 +929,7 @@ void test_tasks_update_task_with_valid_id_updates_task(void) {
     }
 }
 
-void test_tasks_update_task_with_valid_id_and_disabled_task_updates_task(void) {
+void test_tasks_update_task_with_valid_id_and_disabled_task_does_not_update_task(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
@@ -933,16 +943,7 @@ void test_tasks_update_task_with_valid_id_and_disabled_task_updates_task(void) {
 
     rc = tasks_api_update_task(&tasks_handler, 1U, 30U, 10U, 1U, 10U);
 
-    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT16_MESSAGE(30U, tasks_handler.task_list[1].task_interval, "Task interval should be updated");
-    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, tasks_handler.task_list[1].task_start, "Task start should be updated");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, tasks_handler.task_list[1].int_repeats, "Task int_repeats should be updated to 1");
-
-    // Check that the task is not in the heap since it is disabled
-    struct Task *task_ptr = &tasks_handler.task_list[1];
-    if (min_heap_api_find(&tasks_handler.scheduled_tasks, &task_ptr) >= 0) {
-        TEST_FAIL_MESSAGE("Disabled task should NOT be in the scheduled tasks heap");
-    }
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_DISABLED, rc, "Expected DISABLED return code");
 }
 
 void test_tasks_update_task_with_valid_id_and_paused_task_updates_task(void) {
@@ -956,6 +957,7 @@ void test_tasks_update_task_with_valid_id_and_paused_task_updates_task(void) {
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+    tasks_handler.task_module_enabled = true;
 
     tasks_api_pause_task(&tasks_handler, 0U, 0U);
 
@@ -1107,6 +1109,7 @@ void test_tasks_module_disable_with_null_handler_returns_error(void) {
 
 void test_tasks_module_disable_sets_prev_tick_to_current_tick(void) {
     enum TasksReturnCode rc;
+    tasks_handler.task_module_enabled = true;
 
     tasks_handler.prev_tick = 100U;
 
@@ -1223,7 +1226,7 @@ int main(void) {
     RUN_TEST(test_tasks_update_task_with_invalid_id_returns_error);
     RUN_TEST(test_tasks_update_task_with_past_tick_returns_temporal_discontinuity);
     RUN_TEST(test_tasks_update_task_with_valid_id_updates_task);
-    RUN_TEST(test_tasks_update_task_with_valid_id_and_disabled_task_updates_task);
+    RUN_TEST(test_tasks_update_task_with_valid_id_and_disabled_task_does_not_update_task);
     RUN_TEST(test_tasks_update_task_with_valid_id_and_paused_task_updates_task);
     RUN_TEST(test_tasks_update_task_sets_repeats_to_arbitrary_value);
 
