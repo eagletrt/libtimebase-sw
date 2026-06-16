@@ -115,6 +115,7 @@ void test_watchdogs_start_with_past_tick_returns_temporal_discontinuity(void) {
 }
 
 void test_watchdogs_start_already_running_watchdog_returns_busy(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
     enum WatchdogReturnCode rc = watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 5U);
@@ -123,6 +124,7 @@ void test_watchdogs_start_already_running_watchdog_returns_busy(void) {
 }
 
 void test_watchdogs_start_timed_out_watchdog_returns_error(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdog_1.watchdog_state = WATCHDOG_STATE_TIMED_OUT;
 
     enum WatchdogReturnCode rc = watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
@@ -131,6 +133,7 @@ void test_watchdogs_start_timed_out_watchdog_returns_error(void) {
 }
 
 void test_watchdogs_start_valid_watchdog_returns_ok_and_sets_state(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     enum WatchdogReturnCode rc = watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 5U);
 
     TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_OK, rc, "Expected OK return code");
@@ -139,6 +142,7 @@ void test_watchdogs_start_valid_watchdog_returns_ok_and_sets_state(void) {
 }
 
 void test_watchdogs_start_valid_watchdog_inserts_into_heap(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
     TEST_ASSERT_FALSE_MESSAGE(min_heap_api_is_empty(&watchdogs_handler.scheduled_watchdogs), "Heap should not be empty after start");
@@ -146,6 +150,7 @@ void test_watchdogs_start_valid_watchdog_inserts_into_heap(void) {
 }
 
 void test_watchdogs_start_paused_watchdog_resumes_with_remaining_time(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
     watchdogs_api_watchdog_pause(&watchdogs_handler, &watchdog_1, 5U);
 
@@ -192,6 +197,7 @@ void test_watchdogs_stop_timed_out_watchdog_returns_error(void) {
 }
 
 void test_watchdogs_stop_running_watchdog_returns_ok_and_sets_state(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
     enum WatchdogReturnCode rc = watchdogs_api_watchdog_stop(&watchdogs_handler, &watchdog_1);
@@ -201,6 +207,7 @@ void test_watchdogs_stop_running_watchdog_returns_ok_and_sets_state(void) {
 }
 
 void test_watchdogs_stop_running_watchdog_removes_from_heap(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
     watchdogs_api_watchdog_stop(&watchdogs_handler, &watchdog_1);
@@ -209,6 +216,7 @@ void test_watchdogs_stop_running_watchdog_removes_from_heap(void) {
 }
 
 void test_watchdogs_stop_paused_watchdog_returns_ok_without_heap_removal(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
     watchdogs_api_watchdog_pause(&watchdogs_handler, &watchdog_1, 5U);
 
@@ -261,6 +269,7 @@ void test_watchdogs_pause_timed_out_watchdog_returns_error(void) {
 }
 
 void test_watchdogs_pause_running_watchdog_returns_ok_and_sets_state(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
     enum WatchdogReturnCode rc = watchdogs_api_watchdog_pause(&watchdogs_handler, &watchdog_1, 5U);
@@ -307,6 +316,7 @@ void test_watchdogs_restart_with_past_tick_returns_temporal_discontinuity(void) 
 }
 
 void test_watchdogs_restart_not_running_watchdog_starts_it(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     enum WatchdogReturnCode rc = watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_1, 10U);
 
     TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_OK, rc, "Expected OK return code");
@@ -315,6 +325,7 @@ void test_watchdogs_restart_not_running_watchdog_starts_it(void) {
 }
 
 void test_watchdogs_restart_running_watchdog_resets_timer(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
     enum WatchdogReturnCode rc = watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_1, 10U);
@@ -325,6 +336,7 @@ void test_watchdogs_restart_running_watchdog_resets_timer(void) {
 }
 
 void test_watchdogs_restart_timed_out_watchdog_restarts_it(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdog_1.watchdog_state = WATCHDOG_STATE_TIMED_OUT;
 
     enum WatchdogReturnCode rc = watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_1, 10U);
@@ -377,6 +389,7 @@ void test_watchdogs_pet_timed_out_watchdog_returns_error(void) {
 }
 
 void test_watchdogs_pet_running_watchdog_resets_timer(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
     enum WatchdogReturnCode rc = watchdogs_api_watchdog_pet(&watchdogs_handler, &watchdog_1, 5U);
@@ -414,6 +427,7 @@ void test_watchdogs_timeout_not_running_watchdog_returns_error(void) {
 }
 
 void test_watchdogs_timeout_running_watchdog_fires_callback_and_sets_state(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
     enum WatchdogReturnCode rc = watchdogs_api_watchdog_timeout(&watchdogs_handler, &watchdog_1);
@@ -440,6 +454,7 @@ void test_watchdogs_is_running_not_running_returns_false(void) {
 }
 
 void test_watchdogs_is_running_running_returns_true(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
 
     TEST_ASSERT_TRUE_MESSAGE(watchdogs_api_watchdog_is_running(&watchdog_1), "RUNNING watchdog should return true");
@@ -456,6 +471,7 @@ void test_watchdogs_is_timed_out_running_returns_false(void) {
 }
 
 void test_watchdogs_is_timed_out_after_timeout_returns_true(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
     watchdogs_api_watchdog_timeout(&watchdogs_handler, &watchdog_1);
 
@@ -482,7 +498,7 @@ void test_watchdogs_routine_with_module_disabled_returns_not_running(void) {
 
     enum WatchdogReturnCode rc = watchdogs_api_routine(&watchdogs_handler, 0U);
 
-    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_NOT_RUNNING, rc, "Expected NOT_RUNNING return code");
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_DISABLED, rc, "Expected DISABLED return code");
 }
 
 void test_watchdogs_routine_with_empty_heap_returns_ok(void) {
@@ -576,6 +592,7 @@ void test_watchdogs_enable_pool_sets_enabled_flag(void) {
 }
 
 void test_watchdogs_enable_pool_adjusts_next_trigger_times(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
     uint32_t original_trigger = watchdog_1.next_trigger;
     watchdogs_handler.watchdog_module_enabled = false;
@@ -609,6 +626,7 @@ void test_watchdogs_disable_pool_clears_enabled_flag(void) {
 }
 
 void test_watchdogs_disable_pool_updates_prev_tick(void) {
+    watchdogs_handler.watchdog_module_enabled = true;
     watchdogs_handler.prev_tick = 0U;
 
     watchdogs_api_disable_pool(&watchdogs_handler, 50U);

@@ -33,6 +33,7 @@ enum WatchdogReturnCode {
     WATCHDOG_RC_BUSY,                   /*!< The watchdog is already running */
     WATCHDOG_RC_NOT_RUNNING,            /*!< The watchdog is not running */
     WATCHDOG_RC_UNINITIALIZED,          /*!< The watchdog is not initialized */
+    WATCHDOG_RC_DISABLED                /*!< The watchdog module is disabled */
 };
 
 /*!
