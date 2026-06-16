@@ -109,6 +109,7 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
         }
     }
 
+    // Transitions between PAUSED and DISABLED are just state updates, as the next trigger time is calculated only when entering ENABLED
     tasks_handler->actual_state[task_id] = to;
     return TASKS_RC_OK;
 }
