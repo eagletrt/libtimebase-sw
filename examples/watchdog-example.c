@@ -39,7 +39,6 @@ int main(void) {
     struct WatchdogHandler watchdogs_handler;
 
     watchdogs_api_init_pool(&watchdogs_handler, 0U);
-
     struct Watchdog watchdog_1;
     struct Watchdog watchdog_2;
     struct Watchdog watchdog_3;
@@ -47,10 +46,6 @@ int main(void) {
     watchdogs_api_init_watchdog(&watchdog_1, 5U, print_watchdog_1);
     watchdogs_api_init_watchdog(&watchdog_2, 7U, print_watchdog_2);
     watchdogs_api_init_watchdog(&watchdog_3, 10U, print_watchdog_3);
-
-    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
-    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_2, 0U);
-    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_3, 0U);
 
     /*
      * Go trough some ticks to see initialized behaviour.
@@ -65,6 +60,9 @@ int main(void) {
 
         if (i == 5) {
             watchdogs_api_enable_pool(&watchdogs_handler, i);
+            watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, i);
+            watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_2, i);
+            watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_3, i);
         }
 
         printf("Tick: %" PRId32 "  -> ", i);
@@ -76,7 +74,7 @@ int main(void) {
     /*
      * Restart watchdog 2 at tick 30 and pause it at tick 35, unpausing it at 40 should make it fire at 42
      * 
-     * At tick 35 restart also watchdog 3 that should fire after 10 ticks
+     * At tick 30 restart also watchdog 3 that should fire after 10 ticks
      */
 
     for (uint32_t i = 26; i <= 60; i++) {
