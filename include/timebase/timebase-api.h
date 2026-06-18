@@ -1,5 +1,5 @@
 /*!
- * \file timebase.h
+ * \file timebase-api.h
  * \date 2024-04-16
  * \author Alessandro Giustina [giustinalessandro@gmail.com]
  * \author Antonio Gelain [antonio.gelain2@gmail.com]

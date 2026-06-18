@@ -420,5 +420,7 @@ STM32Make.make
 .local_gitignore
 
 platformio.ini
+scripts/**
+
 
 ## ---------------- END MANUALLY ADDED ---------------- ##
