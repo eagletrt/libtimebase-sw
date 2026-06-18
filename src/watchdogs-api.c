@@ -103,9 +103,6 @@ enum WatchdogReturnCode watchdogs_api_routine(struct WatchdogHandler *watchdogs_
     if (watchdogs_handler->prev_tick > current_tick) {
         return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
     }
-    if (watchdogs_handler->watchdog_module_enabled == false) {
-        return WATCHDOG_RC_DISABLED;
-    }
 
     if (min_heap_api_is_empty(&watchdogs_handler->scheduled_watchdogs)) {
         watchdogs_handler->prev_tick = current_tick;
@@ -159,7 +156,6 @@ enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watch
     watchdog->watchdog_callback = callback;
     watchdog->timeout = timeout;
     watchdog->next_trigger = 0;
-    watchdog->last_update = 0;
 
     watchdog->is_initialized = true;
 
@@ -176,9 +172,6 @@ enum WatchdogReturnCode watchdogs_api_watchdog_start(struct WatchdogHandler *con
     if (watchdog->is_initialized == false) {
         return WATCHDOG_RC_UNINITIALIZED;
     }
-    if (watchdogs_handler->watchdog_module_enabled == false) {
-        return WATCHDOG_RC_DISABLED;
-    }
     if (watchdog->watchdog_state == WATCHDOG_STATE_RUNNING) {
         return WATCHDOG_RC_BUSY;
     }
@@ -188,11 +181,7 @@ enum WatchdogReturnCode watchdogs_api_watchdog_start(struct WatchdogHandler *con
 
     enum WatchdogState original_state = watchdog->watchdog_state;
 
-    if (watchdog->watchdog_state == WATCHDOG_STATE_PAUSED) {
-        watchdog->next_trigger = current_tick + (watchdog->next_trigger - watchdog->last_update);
-    } else {
-        watchdog->next_trigger = current_tick + watchdog->timeout;
-    }
+    watchdog->next_trigger = current_tick + watchdog->timeout;
 
     if (min_heap_api_insert(&watchdogs_handler->scheduled_watchdogs, &watchdog) != MIN_HEAP_RC_OK) {
         watchdog->watchdog_state = original_state;
@@ -218,52 +207,11 @@ enum WatchdogReturnCode watchdogs_api_watchdog_stop(struct WatchdogHandler *cons
     if (watchdog->watchdog_state == WATCHDOG_STATE_TIMED_OUT) {
         return WATCHDOG_RC_TIMED_OUT;
     }
-    if (watchdogs_handler->watchdog_module_enabled == false) {
-        return WATCHDOG_RC_DISABLED;
-    }
-
-    if (watchdog->watchdog_state == WATCHDOG_STATE_PAUSED) {
-        watchdog->watchdog_state = WATCHDOG_STATE_NOT_RUNNING;
-        return WATCHDOG_RC_OK;
-    }
 
     enum WatchdogReturnCode unregister_result = prv_watchdog_unregister(watchdogs_handler, watchdog);
     if (unregister_result != WATCHDOG_RC_OK) {
         return unregister_result;
     }
-
-    return WATCHDOG_RC_OK;
-}
-
-enum WatchdogReturnCode watchdogs_api_watchdog_pause(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick) {
-
-    if (watchdogs_handler == NULL || watchdog == NULL) {
-        return WATCHDOG_RC_NULL_POINTER;
-    }
-    if (watchdogs_handler->prev_tick > current_tick) {
-        return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
-    }
-    if (watchdog->is_initialized == false) {
-        return WATCHDOG_RC_UNINITIALIZED;
-    }
-    if (watchdog->watchdog_state == WATCHDOG_STATE_TIMED_OUT) {
-        return WATCHDOG_RC_TIMED_OUT;
-    }
-    if (watchdog->watchdog_state != WATCHDOG_STATE_RUNNING) {
-        return WATCHDOG_RC_NOT_RUNNING;
-    }
-    if (watchdogs_handler->watchdog_module_enabled == false) {
-        return WATCHDOG_RC_DISABLED;
-    }
-
-    enum WatchdogReturnCode unregister_result = prv_watchdog_unregister(watchdogs_handler, watchdog);
-    if (unregister_result != WATCHDOG_RC_OK) {
-        return unregister_result;
-    }
-
-    watchdog->watchdog_state = WATCHDOG_STATE_PAUSED;
-
-    watchdog->last_update = current_tick;
 
     return WATCHDOG_RC_OK;
 }
@@ -279,9 +227,6 @@ enum WatchdogReturnCode watchdogs_api_watchdog_restart(struct WatchdogHandler *c
     if (watchdogs_handler->prev_tick > current_tick) {
         return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
     }
-    if (watchdogs_handler->watchdog_module_enabled == false) {
-        return WATCHDOG_RC_DISABLED;
-    }
 
     if (watchdog->watchdog_state == WATCHDOG_STATE_RUNNING) {
         if (prv_watchdog_unregister(watchdogs_handler, watchdog) != WATCHDOG_RC_OK) {
@@ -289,7 +234,6 @@ enum WatchdogReturnCode watchdogs_api_watchdog_restart(struct WatchdogHandler *c
         }
     }
 
-    watchdog->last_update = current_tick;
     watchdog->next_trigger = current_tick + watchdog->timeout;
 
     watchdog->watchdog_state = WATCHDOG_STATE_RUNNING;
@@ -319,9 +263,6 @@ enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *const
     if (watchdog->watchdog_state != WATCHDOG_STATE_RUNNING) {
         return WATCHDOG_RC_NOT_RUNNING;
     }
-    if (watchdogs_handler->watchdog_module_enabled == false) {
-        return WATCHDOG_RC_DISABLED;
-    }
 
     if (prv_watchdog_unregister(watchdogs_handler, watchdog) != WATCHDOG_RC_OK) {
         return WATCHDOG_RC_ERROR;
@@ -335,36 +276,6 @@ enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *const
         watchdog->watchdog_state = WATCHDOG_STATE_NOT_RUNNING;
         return WATCHDOG_RC_ERROR;
     }
-
-    return WATCHDOG_RC_OK;
-}
-
-enum WatchdogReturnCode watchdogs_api_watchdog_timeout(struct WatchdogHandler *watchdogs_handler, struct Watchdog *watchdog) {
-
-    if (watchdogs_handler == NULL || watchdog == NULL) {
-        return WATCHDOG_RC_NULL_POINTER;
-    }
-    if (watchdog->is_initialized == false) {
-        return WATCHDOG_RC_UNINITIALIZED;
-    }
-    if (watchdog->watchdog_state != WATCHDOG_STATE_RUNNING) {
-        return WATCHDOG_RC_NOT_RUNNING;
-    }
-    if (watchdogs_handler->watchdog_module_enabled == false) {
-        return WATCHDOG_RC_DISABLED;
-    }
-
-    long find_result = min_heap_api_find(&watchdogs_handler->scheduled_watchdogs, &watchdog);
-    if (find_result < 0) {
-        return WATCHDOG_RC_ERROR;
-    }
-    if (min_heap_api_remove(&watchdogs_handler->scheduled_watchdogs, find_result, NULL) != MIN_HEAP_RC_OK) {
-        return WATCHDOG_RC_ERROR;
-    }
-
-    watchdog->watchdog_state = WATCHDOG_STATE_TIMED_OUT;
-
-    watchdog->watchdog_callback();
 
     return WATCHDOG_RC_OK;
 }
@@ -383,45 +294,4 @@ bool watchdogs_api_watchdog_is_timed_out(struct Watchdog *const watchdog) {
     }
 
     return (watchdog->watchdog_state == WATCHDOG_STATE_TIMED_OUT);
-}
-
-enum WatchdogReturnCode watchdogs_api_enable_pool(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
-    if (watchdogs_handler == NULL) {
-        return WATCHDOG_RC_NULL_POINTER;
-    }
-    if (watchdogs_handler->prev_tick > current_tick) {
-        return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
-    }
-    if (watchdogs_handler->watchdog_module_enabled == true) {
-        return WATCHDOG_RC_OK;
-    }
-
-    watchdogs_handler->watchdog_module_enabled = true;
-
-    // This looks like it breaks the heap but as it is a constant that is
-    // added to all the elements it does not change the order of the elements
-    for (int i = 0; i < watchdogs_handler->scheduled_watchdogs.size; ++i) {
-        struct Watchdog *watchdog = *(struct Watchdog **)((uint8_t *)watchdogs_handler->scheduled_watchdogs.data + watchdogs_handler->scheduled_watchdogs.data_size * i);
-        watchdog->next_trigger = current_tick + (watchdog->next_trigger - watchdogs_handler->prev_tick);
-    }
-
-    return WATCHDOG_RC_OK;
-}
-
-enum WatchdogReturnCode watchdogs_api_disable_pool(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
-    if (watchdogs_handler == NULL) {
-        return WATCHDOG_RC_NULL_POINTER;
-    }
-    if (watchdogs_handler->prev_tick > current_tick) {
-        return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
-    }
-    if (watchdogs_handler->watchdog_module_enabled == false) {
-        return WATCHDOG_RC_OK;
-    }
-
-    watchdogs_handler->watchdog_module_enabled = false;
-
-    watchdogs_handler->prev_tick = current_tick;
-
-    return WATCHDOG_RC_OK;
 }

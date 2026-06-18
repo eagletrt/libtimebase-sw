@@ -33,7 +33,6 @@ enum WatchdogReturnCode {
     WATCHDOG_RC_BUSY,                   /*!< The watchdog is already running */
     WATCHDOG_RC_NOT_RUNNING,            /*!< The watchdog is not running */
     WATCHDOG_RC_UNINITIALIZED,          /*!< The watchdog is not initialized */
-    WATCHDOG_RC_DISABLED                /*!< The watchdog module is disabled */
 };
 
 /*!
@@ -42,7 +41,6 @@ enum WatchdogReturnCode {
 enum WatchdogState {
     WATCHDOG_STATE_NOT_RUNNING, /*!< The watchdog is not running */
     WATCHDOG_STATE_RUNNING,     /*!< The watchdog is running */
-    WATCHDOG_STATE_PAUSED,      /*!< The watchdog is paused */
     WATCHDOG_STATE_TIMED_OUT    /*!< The watchdog has timed out */
 };
 
@@ -70,7 +68,6 @@ struct Watchdog {
     uint32_t timeout; /*!< The number of ticks that should elapse for the watchdog to time-out */
 
     uint32_t next_trigger; /*!< The tick at which the watchdog will time-out */
-    uint32_t last_update;  /*!< The last tick at which the watchdog was updated */
 
     bool is_initialized; /*!< True if the watchdog is initialized, false otherwise */
 };
