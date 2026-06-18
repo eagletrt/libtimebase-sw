@@ -421,4 +421,6 @@ STM32Make.make
 
 platformio.ini
 
+scripts/**
+
 ## ---------------- END MANUALLY ADDED ---------------- ##
