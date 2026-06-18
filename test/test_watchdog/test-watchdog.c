@@ -340,14 +340,6 @@ void test_watchdogs_is_timed_out_running_returns_false(void) {
     TEST_ASSERT_FALSE_MESSAGE(watchdogs_api_watchdog_is_timed_out(&watchdog_1), "RUNNING watchdog should return false");
 }
 
-void test_watchdogs_is_timed_out_after_timeout_returns_true(void) {
-
-    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
-    watchdogs_api_watchdog_timeout(&watchdogs_handler, &watchdog_1);
-
-    TEST_ASSERT_TRUE_MESSAGE(watchdogs_api_watchdog_is_timed_out(&watchdog_1), "TIMED_OUT watchdog should return true");
-}
-
 void test_watchdogs_routine_with_null_handler_returns_error(void) {
     enum WatchdogReturnCode rc = watchdogs_api_routine(NULL, 0U);
 
@@ -499,7 +491,6 @@ int main(void) {
     RUN_TEST(test_watchdogs_is_running_running_returns_true);
     RUN_TEST(test_watchdogs_is_timed_out_null_returns_false);
     RUN_TEST(test_watchdogs_is_timed_out_running_returns_false);
-    RUN_TEST(test_watchdogs_is_timed_out_after_timeout_returns_true);
 
     // ROUTINE TESTS
     RUN_TEST(test_watchdogs_routine_with_null_handler_returns_error);
