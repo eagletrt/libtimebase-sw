@@ -35,7 +35,6 @@ enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList
  * 
  * \retval TASKS_RC_OK The operation was successful
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
- * \retval TASKS_RC_DISABLED The tasks module is disabled, no operation can be performed
  * \retval TASKS_RC_ERROR An error occurred during the operation
  * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
@@ -118,28 +117,5 @@ enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint
  * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
 enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, const uint8_t task_id, uint16_t new_interval, uint16_t new_start, uint8_t repeats, uint32_t current_tick);
-
-/*!
- * \brief Enable the tasks module
- *
- * \param tasks_handler The pointer to the tasks handler structure, must not be NULL
- * \param current_tick The current tick count, used to update the next trigger time of the tasks according to the time the module was disabled
- *
- * \retval TASKS_RC_OK The operation was successful
- * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
- * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
- */
-enum TasksReturnCode tasks_api_enable_module(struct TasksHandler *tasks_handler, uint32_t current_tick);
-
-/*!
- * \brief Disable the tasks module
- *
- * \param tasks_handler The pointer to the tasks handler structure, must not be NULL
- * \param current_tick The current tick count
- * \retval TASKS_RC_OK The operation was successful
- * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
- * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
- */
-enum TasksReturnCode tasks_api_disable_module(struct TasksHandler *tasks_handler, uint32_t current_tick);
 
 #endif // TASKS_API_H

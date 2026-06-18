@@ -189,9 +189,6 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
     if (tasks_handler->prev_tick > current_tick) {
         return TASKS_RC_TEMPORAL_DISCONTINUITY;
     }
-    if (tasks_handler->task_module_enabled == false) {
-        return TASKS_RC_DISABLED;
-    }
 
     if (min_heap_api_is_empty(&tasks_handler->scheduled_tasks)) {
         return TASKS_RC_OK;
@@ -258,9 +255,6 @@ enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, u
     if (task_id >= tasks_handler->task_num) {
         return TASKS_RC_INVALID_ID;
     }
-    if (tasks_handler->task_module_enabled == false) {
-        return TASKS_RC_DISABLED;
-    }
 
     tasks_handler->task_list[task_id].task_state = TASKS_STATE_ENABLED;
 
@@ -278,9 +272,6 @@ enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, ui
     }
     if (task_id >= tasks_handler->task_num) {
         return TASKS_RC_INVALID_ID;
-    }
-    if (tasks_handler->task_module_enabled == false) {
-        return TASKS_RC_DISABLED;
     }
 
     tasks_handler->task_list[task_id].task_state = TASKS_STATE_PAUSED;
@@ -300,9 +291,6 @@ enum TasksReturnCode tasks_api_disable_task(struct TasksHandler *tasks_handler, 
     if (task_id >= tasks_handler->task_num) {
         return TASKS_RC_INVALID_ID;
     }
-    if (tasks_handler->task_module_enabled == false) {
-        return TASKS_RC_DISABLED;
-    }
 
     tasks_handler->task_list[task_id].task_state = TASKS_STATE_DISABLED;
 
@@ -320,9 +308,6 @@ enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, c
     }
     if (task_id >= tasks_handler->task_num) {
         return TASKS_RC_INVALID_ID;
-    }
-    if (tasks_handler->task_module_enabled == false) {
-        return TASKS_RC_DISABLED;
     }
 
     struct Task *task = &tasks_handler->task_list[task_id];
@@ -363,43 +348,6 @@ enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint
     }
 
     *task = tasks_handler->task_list[task_id];
-
-    return TASKS_RC_OK;
-}
-
-enum TasksReturnCode tasks_api_enable_module(struct TasksHandler *tasks_handler, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
-        return TASKS_RC_NULL_POINTER;
-    }
-    if (current_tick < tasks_handler->prev_tick) {
-        return TASKS_RC_TEMPORAL_DISCONTINUITY;
-    }
-
-    for (int i = 0; i < tasks_handler->task_num; i++) {
-        tasks_handler->task_list[i].next_trigger += (current_tick - tasks_handler->prev_tick);
-    }
-
-    tasks_handler->task_module_enabled = true;
-
-    tasks_handler->prev_tick = current_tick;
-
-    return TASKS_RC_OK;
-}
-
-enum TasksReturnCode tasks_api_disable_module(struct TasksHandler *tasks_handler, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
-        return TASKS_RC_NULL_POINTER;
-    }
-    if (current_tick < tasks_handler->prev_tick) {
-        return TASKS_RC_TEMPORAL_DISCONTINUITY;
-    }
-    if (tasks_handler->task_module_enabled == false) {
-        return TASKS_RC_OK;
-    }
-
-    tasks_handler->prev_tick = current_tick;
-
-    tasks_handler->task_module_enabled = false;
 
     return TASKS_RC_OK;
 }
