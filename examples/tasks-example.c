@@ -92,19 +92,14 @@ int main(void) {
 
     /*
      * Go trough some ticks to see initialized behaviour.
-     * We enable the module at tick 5
-     * At tick 5 we should see task 1 fire
-     * At tick 10 again task 1 should fire as the
-     * At tick 15 task 3 should fire for the first time and also task 1.
+     * At tick 0 we should see task 1 fire
+     * At tick 5 again task 1 should fire
+     * At tick 10 task 3 should fire for the first time and also task 1.
      * 
      * We also enable task 2 at tick 7, so it should fire at ticks 12 and 19.
      */
 
     for (uint32_t i = 0; i <= 25; i++) {
-
-        if (i == 5) {
-            tasks_api_enable_module(&tasks_handler, i);
-        }
 
         if (i == 7) {
             tasks_api_enable_task(&tasks_handler, PRINT_TASK_2, i);
@@ -133,27 +128,6 @@ int main(void) {
 
         if (i == 35) {
             tasks_api_enable_task(&tasks_handler, PRINT_TASK_2, i);
-        }
-
-        printf("Tick: %" PRId32 "  -> ", i);
-        tasks_api_routine(&tasks_handler, i);
-
-        printf("\n");
-    }
-
-    /*
-     * If the module is disabled at tick 65, no task should fire at tick 70, 
-     * but if we reenable it at tick 76 all the tasks should resume as if they were frozen.
-     */
-
-    for (uint32_t i = 61; i <= 100; i++) {
-
-        if (i == 65) {
-            tasks_api_disable_module(&tasks_handler, i);
-        }
-
-        if (i == 76) {
-            tasks_api_enable_module(&tasks_handler, i);
         }
 
         printf("Tick: %" PRId32 "  -> ", i);
