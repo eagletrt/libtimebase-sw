@@ -618,6 +618,33 @@ void test_tasks_enable_after_pause_resumes_task_with_correct_trigger_time(void) 
     }
 }
 
+void test_tasks_enable_after_disable_restarts_task_with_correct_trigger_time(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    tasks_handler.actual_state[1] = TASKS_STATE_DISABLED;
+    tasks_handler.task_list[1].next_trigger = 20U;
+    tasks_handler.task_list[1].last_update = 10U;
+
+    rc = tasks_api_enable_task(&tasks_handler, 1U, 15U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    struct Task *next_task;
+    if (min_heap_api_remove(&tasks_handler.scheduled_tasks, 0U, &next_task) == MIN_HEAP_RC_OK) {
+        TEST_ASSERT_EQUAL_UINT32_MESSAGE(20U, next_task->next_trigger, "Next trigger time should be reset to current tick + task start");
+    } else {
+        TEST_FAIL_MESSAGE("Failed to remove task from heap");
+    }
+}
+
 void test_tasks_pause_with_null_handler_returns_error(void) {
     enum TasksReturnCode rc;
 
@@ -770,6 +797,23 @@ void test_tasks_pause_mid_count_preserves_remaining_repeats(void) {
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, task_function_1_fake.call_count, "Task should not fire after repeats exhausted");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[TASK_1], "Task should be disabled after repeats exhausted");
+}
+
+void test_tasks_pause_disabled_task_returns_error(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
+        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
+        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
+        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_api_pause_task(&tasks_handler, 0U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_ERROR, rc, "Expected ERROR return code");
 }
 
 void test_tasks_disable_with_null_handler_returns_error(void) {
@@ -1081,6 +1125,7 @@ int main(void) {
     RUN_TEST(test_tasks_enable_with_already_enabled_task_returns_ok);
     RUN_TEST(test_tasks_enable_with_valid_id_enables_task);
     RUN_TEST(test_tasks_enable_after_pause_resumes_task_with_correct_trigger_time);
+    RUN_TEST(test_tasks_enable_after_disable_restarts_task_with_correct_trigger_time);
 
     RUN_TEST(test_tasks_pause_with_null_handler_returns_error);
     RUN_TEST(test_tasks_pause_with_invalid_id_returns_error);
@@ -1090,6 +1135,7 @@ int main(void) {
     RUN_TEST(test_tasks_pause_repeats_task_before_start_resumes_correctly);
     RUN_TEST(test_tasks_pause_repeats_task_after_start_resumes_correctly);
     RUN_TEST(test_tasks_pause_mid_count_preserves_remaining_repeats);
+    RUN_TEST(test_tasks_pause_disabled_task_returns_error);
 
     RUN_TEST(test_tasks_disable_with_null_handler_returns_error);
     RUN_TEST(test_tasks_disable_with_invalid_id_returns_error);

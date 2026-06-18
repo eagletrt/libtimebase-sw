@@ -273,6 +273,9 @@ enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, ui
     if (task_id >= tasks_handler->task_num) {
         return TASKS_RC_INVALID_ID;
     }
+    if (tasks_handler->actual_state[task_id] == TASKS_STATE_DISABLED) {
+        return TASKS_RC_ERROR;
+    }
 
     tasks_handler->task_list[task_id].task_state = TASKS_STATE_PAUSED;
 
