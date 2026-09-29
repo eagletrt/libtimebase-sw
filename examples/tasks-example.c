@@ -42,34 +42,34 @@ enum TaskNames {
 void init_tasks_module(struct TasksHandler *task_handler) {
 
     // The only parameters that can be omitted are one_shot (default false)
-    // and task_state (default DISABLED), but the task_function and ID must be provided for every task
+    // and state (default DISABLED), but the function and ID must be provided for every task
     static TaskList t_l = {
         // Enabled default task, not one-shot, immediate start, interval of 5 ticks
         {
             .task_id = PRINT_TASK_1,
             .repeats = 0,
-            .task_function = print_task_1,
-            .task_interval = 5U,
-            .task_state = TASKS_STATE_ENABLED,
-            .task_start = 0U,
+            .function = print_task_1,
+            .interval = 5U,
+            .state = TASKS_STATE_ENABLED,
+            .start = 0U,
         },
 
         // Enabled default task, not one-shot, start delayed by 5 ticks, interval of 7 ticks
         {
             .task_id = PRINT_TASK_2,
-            .task_function = print_task_2,
-            .task_interval = 7U,
-            .task_start = 5U,
+            .function = print_task_2,
+            .interval = 7U,
+            .start = 5U,
         },
 
         // Enabled one-shot task, start delayed by 10 ticks, interval of 5 ticks (ignored since one-shot)
         {
             .task_id = PRINT_TASK_3,
             .repeats = 1,
-            .task_function = print_task_3,
-            .task_interval = 5U,
-            .task_state = TASKS_STATE_ENABLED,
-            .task_start = 10U,
+            .function = print_task_3,
+            .interval = 5U,
+            .state = TASKS_STATE_ENABLED,
+            .start = 10U,
         }
     };
 

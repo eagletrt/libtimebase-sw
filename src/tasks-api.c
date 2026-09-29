@@ -14,7 +14,7 @@
  * \param b pointer to the second task
  * \return -1 if the first task should be scheduled before the second, 1 if it should be scheduled after, 0 if they are equal
  */
-int8_t prv_task_compare(void *a, void *b) {
+EAGLETRT_STATIC int8_t prv_task_compare(void *a, void *b) {
     const struct Task *const f = *(struct Task **)a;
     const struct Task *const s = *(struct Task **)b;
 
@@ -74,7 +74,7 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
     }
 
     enum TaskState from = tasks_handler->actual_state[task_id];
-    enum TaskState to = tasks_handler->task_list[task_id].task_state;
+    enum TaskState to = tasks_handler->task_list[task_id].state;
 
     if (from == to) {
         return TASKS_RC_OK;
@@ -103,7 +103,7 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
             task->next_trigger = tick + (task->next_trigger - task->last_update);
         } else {
             tasks_handler->task_list[task_id].repeats = tasks_handler->task_list[task_id].int_repeats;
-            task->next_trigger = tick + task->task_start;
+            task->next_trigger = tick + task->start;
         }
         if (min_heap_api_insert(&tasks_handler->scheduled_tasks, &task) != MIN_HEAP_RC_OK) {
             return TASKS_RC_ERROR;
@@ -162,8 +162,8 @@ enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList
 
     for (uint8_t i = 0; i < num_tasks; ++i) {
         if (t_list[i].task_id != i ||
-            t_list[i].task_state == TASKS_STATE_PAUSED ||
-            t_list[i].task_function == NULL) {
+            t_list[i].state == TASKS_STATE_PAUSED ||
+            t_list[i].function == NULL) {
             return TASKS_RC_INVALID_LIST;
         }
         tasks_handler->task_list[i] = t_list[i];
@@ -207,7 +207,7 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
         }
 
         // Execute the task
-        next_task->task_function();
+        next_task->function();
 
         next_task->last_update = current_tick;
 
@@ -215,10 +215,10 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
             --(next_task->repeats);
         }
 
-        if ((next_task->repeats > 0 || next_task->int_repeats == 0) && next_task->task_state == TASKS_STATE_ENABLED) {
+        if ((next_task->repeats > 0 || next_task->int_repeats == 0) && next_task->state == TASKS_STATE_ENABLED) {
 
             // Update the next trigger time
-            next_task->next_trigger += EAGLETRT_API_MAX(next_task->task_interval, 1U);
+            next_task->next_trigger += EAGLETRT_API_MAX(next_task->interval, 1U);
 
             // Reinsert the task with the updated trigger time
             if (min_heap_api_insert(&tasks_handler->scheduled_tasks, &next_task) != MIN_HEAP_RC_OK) {
@@ -226,7 +226,7 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
             }
         } else {
             // For expired tasks, just update the state to disabled and don't reinsert it into the heap
-            next_task->task_state = TASKS_STATE_DISABLED;
+            next_task->state = TASKS_STATE_DISABLED;
             tasks_handler->actual_state[next_task->task_id] = TASKS_STATE_DISABLED;
         }
 
@@ -256,7 +256,7 @@ enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, u
         return TASKS_RC_INVALID_ID;
     }
 
-    tasks_handler->task_list[task_id].task_state = TASKS_STATE_ENABLED;
+    tasks_handler->task_list[task_id].state = TASKS_STATE_ENABLED;
 
     tasks_handler->prev_tick = current_tick;
 
@@ -277,7 +277,7 @@ enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, ui
         return TASKS_RC_ERROR;
     }
 
-    tasks_handler->task_list[task_id].task_state = TASKS_STATE_PAUSED;
+    tasks_handler->task_list[task_id].state = TASKS_STATE_PAUSED;
 
     tasks_handler->prev_tick = current_tick;
 
@@ -295,7 +295,7 @@ enum TasksReturnCode tasks_api_disable_task(struct TasksHandler *tasks_handler, 
         return TASKS_RC_INVALID_ID;
     }
 
-    tasks_handler->task_list[task_id].task_state = TASKS_STATE_DISABLED;
+    tasks_handler->task_list[task_id].state = TASKS_STATE_DISABLED;
 
     tasks_handler->prev_tick = current_tick;
 
@@ -315,26 +315,26 @@ enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, c
 
     struct Task *task = &tasks_handler->task_list[task_id];
 
-    task->task_interval = new_interval;
-    task->task_start = new_start;
+    task->interval = new_interval;
+    task->start = new_start;
     task->int_repeats = repeats;
     task->repeats = repeats;
 
     // Disable and reenable the task to update the heap with the new information
-    enum TaskState original_state = task->task_state;
+    enum TaskState original_state = task->state;
 
     if (original_state != TASKS_STATE_ENABLED) {
         tasks_handler->prev_tick = current_tick;
         return TASKS_RC_OK;
     }
 
-    task->task_state = TASKS_STATE_DISABLED;
+    task->state = TASKS_STATE_DISABLED;
     enum TasksReturnCode rc = prv_handle_task_transition(tasks_handler, task_id, current_tick);
     if (rc != TASKS_RC_OK) {
-        task->task_state = original_state; // Restore the original state in case of error
+        task->state = original_state; // Restore the original state in case of error
         return rc;
     }
-    task->task_state = original_state;
+    task->state = original_state;
 
     tasks_handler->prev_tick = current_tick;
 

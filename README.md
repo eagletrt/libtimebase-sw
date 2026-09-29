@@ -23,11 +23,11 @@ Once initialized, the user can enable, disable, pause and update the tasks as ne
 #### Behavior
 The use of an enumerator is greatly recommended to define the task IDs, this way the code will be more readable and less error prone, but it is not mandatory as long as the user ensures that the task IDs are unique and sequential starting from 0. The required parameters for each task are the following:
  - `task_id`: the unique identifier of the task, this value must be unique and sequential starting from 0, it is used to identify the task in the API functions. (REQUIRED)
- - `task_state`: the initial state of the task, this value can be either enabled or disabled, if the task is enabled at initialization it will be scheduled to run for the first time at `current_tick + start`, where `start` is the start time of the task in ticks.
+ - `state`: the initial state of the task, this value can be either enabled or disabled, if the task is enabled at initialization it will be scheduled to run for the first time at `current_tick + start`, where `start` is the start time of the task in ticks.
  - `repeats`: an integer value that indicates the number of times the task should repeat, if it is 0 the task will repeat indefinitely.
- - `task_function`: a pointer to a function that will be called when the task is triggered, this function must be defined by the user and it must have the following signature: `void callback(void)`. (REQUIRED)
- - `task_interval`: the interval time of the task in ticks, this value is used to calculate the next trigger time of the task after it has been triggered for the first time (if not initialized or set to 0 then it will be treated as 1).
- - `task_start`: the start time of the task in ticks, this value is used to calculate the next trigger time of the task when it is enabled.
+ - `function`: a pointer to a function that will be called when the task is triggered, this function must be defined by the user and it must have the following signature: `void callback(void)`. (REQUIRED)
+ - `interval`: the interval time of the task in ticks, this value is used to calculate the next trigger time of the task after it has been triggered for the first time (if not initialized or set to 0 then it will be treated as 1).
+ - `start`: the start time of the task in ticks, this value is used to calculate the next trigger time of the task when it is enabled.
 
 All the fields marked as required must be initialized by the user, otherwise the initialization will fail.
 

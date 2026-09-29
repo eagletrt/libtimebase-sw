@@ -19,10 +19,10 @@ DEFINE_FFF_GLOBALS;
 
 struct TasksHandler tasks_handler;
 
-FAKE_VOID_FUNC(task_function_1);
-FAKE_VOID_FUNC(task_function_2);
-FAKE_VOID_FUNC(task_function_3);
-FAKE_VOID_FUNC(task_function_4);
+FAKE_VOID_FUNC(function_1);
+FAKE_VOID_FUNC(function_2);
+FAKE_VOID_FUNC(function_3);
+FAKE_VOID_FUNC(function_4);
 
 enum TasksNames {
     TASK_1 = 0,
@@ -33,10 +33,10 @@ enum TasksNames {
 };
 
 TaskList t_list = {
-    { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-    { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-    { .task_id = TASK_3, .task_state = TASKS_STATE_ENABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-    { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+    { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+    { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+    { .task_id = TASK_3, .state = TASKS_STATE_ENABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+    { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
 };
 
 // Function definition for private functions to be tested
@@ -63,10 +63,10 @@ void test_tasks_init_with_invalid_list_item_state_returns_error(void) {
     enum TasksReturnCode rc;
 
     TaskList invalid_list = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_PAUSED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_ENABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_PAUSED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_ENABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     rc = tasks_api_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
@@ -78,10 +78,10 @@ void test_tasks_init_with_invalid_list_item_id_returns_error(void) {
     enum TasksReturnCode rc;
 
     TaskList invalid_list = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = 5U, .task_state = TASKS_STATE_ENABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = 5U, .state = TASKS_STATE_ENABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     rc = tasks_api_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
@@ -113,7 +113,7 @@ void test_tasks_init_with_valid_list_initializes_tasks_handler(void) {
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_COUNT, tasks_handler.task_num, "Number of tasks not set correctly");
 
-    t_list[2].next_trigger = 10U; // The next trigger time is set to task_start for enabled tasks during initialization
+    t_list[2].next_trigger = 10U; // The next trigger time is set to start for enabled tasks during initialization
     t_list[2].int_repeats = 1U;   // The int_repeats field is set to the value of repeats during initialization
 
     TEST_ASSERT_EQUAL_MEMORY_MESSAGE(&t_list[0], &tasks_handler.task_list[0], sizeof(struct Task), "Task 1 not copied correctly");
@@ -142,17 +142,17 @@ void test_tasks_init_without_function_original_states_defaults_disabled(void) {
     enum TasksReturnCode rc;
 
     TaskList invalid_list = {
-        { .task_id = TASK_1, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     rc = tasks_api_init(&tasks_handler, invalid_list, TASK_COUNT, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     for (uint8_t i = 0; i < TASK_COUNT; ++i) {
-        TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.task_list[i].task_state, "Task state should be set to DISABLED when not initialized");
+        TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.task_list[i].state, "Task state should be set to DISABLED when not initialized");
     }
 }
 
@@ -160,10 +160,10 @@ void test_tasks_init_without_repeats_defaults_to_infinite(void) {
     enum TasksReturnCode rc;
 
     TaskList list = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_ENABLED, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_ENABLED, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     rc = tasks_api_init(&tasks_handler, list, TASK_COUNT, 0U);
@@ -193,15 +193,15 @@ void test_tasks_handle_task_transition_with_valid_id_returns_ok(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
+    tasks_handler.task_list[0].state = TASKS_STATE_ENABLED;
 
     rc = prv_handle_task_transition(&tasks_handler, 0U, 0U);
 
@@ -213,15 +213,15 @@ void test_tasks_handle_task_transition_with_valid_id_adds_and_removes_from_heap(
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
+    tasks_handler.task_list[0].state = TASKS_STATE_ENABLED;
 
     rc = prv_handle_task_transition(&tasks_handler, 0U, 0U);
 
@@ -229,7 +229,7 @@ void test_tasks_handle_task_transition_with_valid_id_adds_and_removes_from_heap(
     TEST_ASSERT_FALSE_MESSAGE(min_heap_api_is_empty(&tasks_handler.scheduled_tasks), "Scheduled tasks heap should not be empty after enabling task");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, tasks_handler.scheduled_tasks.size, "Scheduled tasks heap should contain 1 task after enabling task");
 
-    tasks_handler.task_list[0].task_state = TASKS_STATE_DISABLED;
+    tasks_handler.task_list[0].state = TASKS_STATE_DISABLED;
 
     rc = prv_handle_task_transition(&tasks_handler, 0U, 0U);
 
@@ -241,15 +241,15 @@ void test_tasks_handle_task_transition_with_valid_id_updates_trigger_time(void) 
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 10U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 10U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
+    tasks_handler.task_list[0].state = TASKS_STATE_ENABLED;
 
     rc = prv_handle_task_transition(&tasks_handler, 0U, 5U);
 
@@ -266,15 +266,15 @@ void test_tasks_handle_task_transition_with_valid_id_updates_trigger_time_on_res
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 10U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 10U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
+    tasks_handler.task_list[0].state = TASKS_STATE_ENABLED;
     tasks_handler.actual_state[0] = TASKS_STATE_PAUSED;
     tasks_handler.task_list[0].next_trigger = 20U;
     tasks_handler.task_list[0].last_update = 10U;
@@ -294,7 +294,7 @@ void test_tasks_handle_task_transition_with_valid_id_and_no_state_change_returns
     enum TasksReturnCode rc;
     tasks_handler.task_num = TASK_COUNT;
     tasks_handler.actual_state[0] = TASKS_STATE_ENABLED;
-    tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
+    tasks_handler.task_list[0].state = TASKS_STATE_ENABLED;
 
     rc = prv_handle_task_transition(&tasks_handler, 0U, 0U);
 
@@ -306,16 +306,16 @@ void test_tasks_handle_task_transition_with_valid_id_and_no_state_change_does_no
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
     tasks_handler.task_num = TASK_COUNT;
     tasks_handler.actual_state[0] = TASKS_STATE_ENABLED;
-    tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
+    tasks_handler.task_list[0].state = TASKS_STATE_ENABLED;
 
     rc = prv_handle_task_transition(&tasks_handler, 0U, 0U);
 
@@ -336,15 +336,15 @@ void test_tasks_update_heap_with_correct_parameters_returns_ok(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 10U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 10U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
-    tasks_handler.task_list[0].task_state = TASKS_STATE_ENABLED;
+    tasks_handler.task_list[0].state = TASKS_STATE_ENABLED;
 
     rc = prv_tasks_update_heap(&tasks_handler, 5U);
 
@@ -391,10 +391,10 @@ void test_tasks_routine_with_valid_parameters_executes_tasks_immediately(void) {
     rc = tasks_api_routine(&tasks_handler, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_1_fake.call_count, "Task function should have been called once");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, task_function_2_fake.call_count, "Task function 2 should not have been called");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, task_function_3_fake.call_count, "Task function 3 should not have been called");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, task_function_4_fake.call_count, "Task function 4 should not have been called");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task function should have been called once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, function_2_fake.call_count, "Task function 2 should not have been called");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, function_3_fake.call_count, "Task function 3 should not have been called");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, function_4_fake.call_count, "Task function 4 should not have been called");
 }
 
 void test_tasks_routine_with_valid_parameters_executes_tasks_after_interval(void) {
@@ -403,25 +403,25 @@ void test_tasks_routine_with_valid_parameters_executes_tasks_after_interval(void
     rc = tasks_api_routine(&tasks_handler, 4U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_1_fake.call_count, "Task function should not have been called yet");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task function should not have been called yet");
 
     rc = tasks_api_routine(&tasks_handler, 12U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, task_function_1_fake.call_count, "Task function should have been called once after interval");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, task_function_2_fake.call_count, "Task function 2 should not have been called");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_3_fake.call_count, "Task function 3 should not have been called");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, task_function_4_fake.call_count, "Task function 4 should not have been called");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task function should have been called once after interval");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, function_2_fake.call_count, "Task function 2 should not have been called");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_3_fake.call_count, "Task function 3 should not have been called");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, function_4_fake.call_count, "Task function 4 should not have been called");
 }
 
 void test_tasks_routine_with_valid_parameters_executes_repeats_task_exact_times(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_ENABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 5U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_ENABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 5U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -429,27 +429,27 @@ void test_tasks_routine_with_valid_parameters_executes_repeats_task_exact_times(
     rc = tasks_api_routine(&tasks_handler, 4U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, task_function_3_fake.call_count, "Task function should not have been called yet");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, function_3_fake.call_count, "Task function should not have been called yet");
 
     rc = tasks_api_routine(&tasks_handler, 12U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_3_fake.call_count, "Task function should have been called once after interval");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_3_fake.call_count, "Task function should have been called once after interval");
 
     rc = tasks_api_routine(&tasks_handler, 35U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_3_fake.call_count, "Repeats=1 task function should not have been called again");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_3_fake.call_count, "Repeats=1 task function should not have been called again");
 }
 
 void test_tasks_routine_with_valid_parameters_executes_repeats_task_after_reenabled(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_ENABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 5U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_ENABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 5U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -457,29 +457,29 @@ void test_tasks_routine_with_valid_parameters_executes_repeats_task_after_reenab
     rc = tasks_api_routine(&tasks_handler, 12U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_3_fake.call_count, "Task function should have been called once after interval");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_3_fake.call_count, "Task function should have been called once after interval");
 
     tasks_api_enable_task(&tasks_handler, TASK_3, 20U);
 
     rc = tasks_api_routine(&tasks_handler, 24U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_3_fake.call_count, "Repeats=1 task function should not have been called again before timeout");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_3_fake.call_count, "Repeats=1 task function should not have been called again before timeout");
 
     rc = tasks_api_routine(&tasks_handler, 30U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, task_function_3_fake.call_count, "Repeats=1 task function should have been called again after being reenabled and reaching timeout");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_3_fake.call_count, "Repeats=1 task function should have been called again after being reenabled and reaching timeout");
 }
 
-void test_tasks_routine_with_task_interval_set_to_zero_treats_as_one(void) {
+void test_tasks_routine_with_interval_set_to_zero_treats_as_one(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 0U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 0U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -487,41 +487,41 @@ void test_tasks_routine_with_task_interval_set_to_zero_treats_as_one(void) {
     rc = tasks_api_routine(&tasks_handler, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_1_fake.call_count, "Task function should have been called once immediately");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task function should have been called once immediately");
 
     rc = tasks_api_routine(&tasks_handler, 1U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, task_function_1_fake.call_count, "Task function should have been called again after interval treated as 1");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task function should have been called again after interval treated as 1");
 }
 
 void test_tasks_routine_with_valid_parameters_executes_repeats_N_times(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 3U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 3U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
 
     rc = tasks_api_routine(&tasks_handler, 0U);
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_1_fake.call_count, "Task should have fired once at tick 0");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should have fired once at tick 0");
 
     rc = tasks_api_routine(&tasks_handler, 10U);
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, task_function_1_fake.call_count, "Task should have fired twice at tick 10");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task should have fired twice at tick 10");
 
     rc = tasks_api_routine(&tasks_handler, 20U);
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, task_function_1_fake.call_count, "Task should have fired three times at tick 20");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, function_1_fake.call_count, "Task should have fired three times at tick 20");
 
     rc = tasks_api_routine(&tasks_handler, 30U);
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, task_function_1_fake.call_count, "Task should not fire again after repeats exhausted");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, function_1_fake.call_count, "Task should not fire again after repeats exhausted");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[TASK_1], "Task should be disabled after repeats exhausted");
 }
 
@@ -555,10 +555,10 @@ void test_tasks_enable_with_already_enabled_task_returns_ok(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -573,10 +573,10 @@ void test_tasks_enable_with_valid_id_enables_task(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -595,10 +595,10 @@ void test_tasks_enable_after_pause_resumes_task_with_correct_trigger_time(void) 
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -622,10 +622,10 @@ void test_tasks_enable_after_disable_restarts_task_with_correct_trigger_time(voi
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -675,10 +675,10 @@ void test_tasks_pause_with_already_paused_task_returns_ok(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -695,10 +695,10 @@ void test_tasks_pause_with_valid_id_pauses_task(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -717,10 +717,10 @@ void test_tasks_pause_repeats_task_before_start_resumes_correctly(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 1U, .task_function = task_function_1, .task_interval = 10U, .task_start = 10U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 1U, .function = function_1, .interval = 10U, .start = 10U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -738,10 +738,10 @@ void test_tasks_pause_repeats_task_after_start_resumes_correctly(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 10U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 10U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -759,10 +759,10 @@ void test_tasks_pause_mid_count_preserves_remaining_repeats(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 3U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 3U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -770,7 +770,7 @@ void test_tasks_pause_mid_count_preserves_remaining_repeats(void) {
     // Fire once: repeats countdown goes from 3 to 2
     rc = tasks_api_routine(&tasks_handler, 0U);
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, task_function_1_fake.call_count, "Task should have fired once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should have fired once");
 
     // Pause mid-interval: 5 ticks remaining until next trigger (next_trigger=10, last_update=0, pause at 5)
     tasks_api_pause_task(&tasks_handler, TASK_1, 5U);
@@ -785,17 +785,17 @@ void test_tasks_pause_mid_count_preserves_remaining_repeats(void) {
     // Fire second time
     rc = tasks_api_routine(&tasks_handler, 13U);
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, task_function_1_fake.call_count, "Task should have fired a second time");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task should have fired a second time");
 
     // Fire third and final time
     rc = tasks_api_routine(&tasks_handler, 23U);
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, task_function_1_fake.call_count, "Task should have fired a third time");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, function_1_fake.call_count, "Task should have fired a third time");
 
     // Should not fire again
     rc = tasks_api_routine(&tasks_handler, 33U);
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, task_function_1_fake.call_count, "Task should not fire after repeats exhausted");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, function_1_fake.call_count, "Task should not fire after repeats exhausted");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[TASK_1], "Task should be disabled after repeats exhausted");
 }
 
@@ -803,10 +803,10 @@ void test_tasks_pause_disabled_task_returns_error(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -846,10 +846,10 @@ void test_tasks_disable_with_already_disabled_task_returns_ok(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -864,10 +864,10 @@ void test_tasks_disable_with_valid_id_disables_task(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -912,10 +912,10 @@ void test_tasks_update_task_with_valid_id_updates_task(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 5U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 5U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -923,16 +923,16 @@ void test_tasks_update_task_with_valid_id_updates_task(void) {
     rc = tasks_api_update_task(&tasks_handler, 0U, 20U, 10U, 1U, 10U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT16_MESSAGE(20U, tasks_handler.task_list[0].task_interval, "Task interval should be updated");
-    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, tasks_handler.task_list[0].task_start, "Task start should be updated");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(20U, tasks_handler.task_list[0].interval, "Task interval should be updated");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, tasks_handler.task_list[0].start, "Task start should be updated");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, tasks_handler.task_list[0].int_repeats, "Task int_repeats should be updated to 1");
 
     // Check if the task is updated in the heap
     struct Task *next_task;
     if (min_heap_api_remove(&tasks_handler.scheduled_tasks, 0U, &next_task) == MIN_HEAP_RC_OK) {
         TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, next_task->task_id, "Updated task should be in the heap");
-        TEST_ASSERT_EQUAL_UINT32_MESSAGE(20U, next_task->task_interval, "Task interval in heap should be updated");
-        TEST_ASSERT_EQUAL_UINT32_MESSAGE(10U, next_task->task_start, "Task start in heap should be updated");
+        TEST_ASSERT_EQUAL_UINT32_MESSAGE(20U, next_task->interval, "Task interval in heap should be updated");
+        TEST_ASSERT_EQUAL_UINT32_MESSAGE(10U, next_task->start, "Task start in heap should be updated");
         TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, next_task->int_repeats, "Task int_repeats in heap should be updated to 1");
         TEST_ASSERT_EQUAL_UINT32_MESSAGE(20U, next_task->next_trigger, "Next trigger time should be updated according to new start and interval");
     } else {
@@ -944,10 +944,10 @@ void test_tasks_update_task_with_valid_id_and_disabled_task_updates_task(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -955,8 +955,8 @@ void test_tasks_update_task_with_valid_id_and_disabled_task_updates_task(void) {
     rc = tasks_api_update_task(&tasks_handler, 1U, 30U, 10U, 1U, 10U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT16_MESSAGE(30U, tasks_handler.task_list[1].task_interval, "Task interval should be updated");
-    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, tasks_handler.task_list[1].task_start, "Task start should be updated");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(30U, tasks_handler.task_list[1].interval, "Task interval should be updated");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, tasks_handler.task_list[1].start, "Task start should be updated");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, tasks_handler.task_list[1].int_repeats, "Task int_repeats should be updated to 1");
 }
 
@@ -964,10 +964,10 @@ void test_tasks_update_task_with_valid_id_and_paused_task_updates_task(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -977,8 +977,8 @@ void test_tasks_update_task_with_valid_id_and_paused_task_updates_task(void) {
     rc = tasks_api_update_task(&tasks_handler, 0U, 20U, 10U, 1U, 10U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT16_MESSAGE(20U, tasks_handler.task_list[0].task_interval, "Task interval should be updated");
-    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, tasks_handler.task_list[0].task_start, "Task start should be updated");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(20U, tasks_handler.task_list[0].interval, "Task interval should be updated");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, tasks_handler.task_list[0].start, "Task start should be updated");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, tasks_handler.task_list[0].int_repeats, "Task int_repeats should be updated to 1");
 
     // Check that the task is not in the heap since it is paused
@@ -992,10 +992,10 @@ void test_tasks_update_task_sets_repeats_to_arbitrary_value(void) {
     enum TasksReturnCode rc;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 0U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -1009,12 +1009,12 @@ void test_tasks_update_task_sets_repeats_to_arbitrary_value(void) {
     for (uint32_t i = 0; i < 5U; ++i) {
         rc = tasks_api_routine(&tasks_handler, i * 10U);
         TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-        TEST_ASSERT_EQUAL_UINT8_MESSAGE(i + 1U, task_function_1_fake.call_count, "Task should have fired once per iteration");
+        TEST_ASSERT_EQUAL_UINT8_MESSAGE(i + 1U, function_1_fake.call_count, "Task should have fired once per iteration");
     }
 
     rc = tasks_api_routine(&tasks_handler, 50U);
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(5U, task_function_1_fake.call_count, "Task should not fire after 5 repeats exhausted");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(5U, function_1_fake.call_count, "Task should not fire after 5 repeats exhausted");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[TASK_1], "Task should be disabled after repeats exhausted");
 }
 
@@ -1041,10 +1041,10 @@ void test_tasks_get_task_with_valid_id_returns_ok_and_copies_task(void) {
     struct Task task;
 
     TaskList local_tasks = {
-        { .task_id = TASK_1, .task_state = TASKS_STATE_ENABLED, .repeats = 0U, .task_function = task_function_1, .task_interval = 10U, .task_start = 5U },
-        { .task_id = TASK_2, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_2, .task_interval = 20U, .task_start = 5U },
-        { .task_id = TASK_3, .task_state = TASKS_STATE_DISABLED, .repeats = 1U, .task_function = task_function_3, .task_interval = 15U, .task_start = 10U },
-        { .task_id = TASK_4, .task_state = TASKS_STATE_DISABLED, .repeats = 0U, .task_function = task_function_4, .task_interval = 25U, .task_start = 0U }
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 5U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
     };
 
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
@@ -1053,21 +1053,21 @@ void test_tasks_get_task_with_valid_id_returns_ok_and_copies_task(void) {
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, task.task_id, "Task ID should be copied correctly");
-    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, task.task_state, "Task state should be copied correctly");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, task.state, "Task state should be copied correctly");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, task.int_repeats, "Task int_repeats should be copied correctly");
-    TEST_ASSERT_EQUAL_PTR_MESSAGE(task_function_1, task.task_function, "Task function pointer should be copied correctly");
-    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, task.task_interval, "Task interval should be copied correctly");
-    TEST_ASSERT_EQUAL_UINT16_MESSAGE(5U, task.task_start, "Task start should be copied correctly");
+    TEST_ASSERT_EQUAL_PTR_MESSAGE(function_1, task.function, "Task function pointer should be copied correctly");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(10U, task.interval, "Task interval should be copied correctly");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(5U, task.start, "Task start should be copied correctly");
 }
 
 void setUp(void) {
     memset(&tasks_handler, 0, sizeof(tasks_handler));
     tasks_api_init(&tasks_handler, t_list, TASK_COUNT, 0U);
 
-    RESET_FAKE(task_function_1);
-    RESET_FAKE(task_function_2);
-    RESET_FAKE(task_function_3);
-    RESET_FAKE(task_function_4);
+    RESET_FAKE(function_1);
+    RESET_FAKE(function_2);
+    RESET_FAKE(function_3);
+    RESET_FAKE(function_4);
 }
 
 void tearDown(void) {
@@ -1114,7 +1114,7 @@ int main(void) {
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_tasks_after_interval);
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_repeats_task_exact_times);
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_repeats_task_after_reenabled);
-    RUN_TEST(test_tasks_routine_with_task_interval_set_to_zero_treats_as_one);
+    RUN_TEST(test_tasks_routine_with_interval_set_to_zero_treats_as_one);
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_repeats_N_times);
 
     // TASK CONTROL TESTS
