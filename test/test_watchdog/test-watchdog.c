@@ -415,6 +415,26 @@ void test_watchdogs_routine_removes_timed_out_watchdogs_from_heap(void) {
     TEST_ASSERT_TRUE_MESSAGE(min_heap_api_is_empty(&watchdogs_handler.scheduled_watchdogs), "Heap should be empty after processing timed out watchdog");
 }
 
+void test_watchdogs_stop_with_shared_callback_and_same_deadline_removes_correct_watchdog(void) {
+    struct Watchdog wd_a = { 0 };
+    struct Watchdog wd_b = { 0 };
+    watchdogs_api_init_watchdog(&wd_a, 100U, watchdog_callback_1);
+    watchdogs_api_init_watchdog(&wd_b, 100U, watchdog_callback_1);
+    watchdogs_api_watchdog_start(&watchdogs_handler, &wd_a, 0U);
+    watchdogs_api_watchdog_start(&watchdogs_handler, &wd_b, 0U);
+
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_stop(&watchdogs_handler, &wd_b);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(1U, watchdogs_handler.scheduled_watchdogs.size, "Only wd_a should remain scheduled");
+
+    watchdogs_api_routine(&watchdogs_handler, 100U);
+
+    TEST_ASSERT_TRUE_MESSAGE(watchdogs_api_watchdog_is_timed_out(&wd_a), "wd_a should have timed out");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_NOT_RUNNING, wd_b.watchdog_state, "wd_b should stay stopped");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, watchdog_callback_1_fake.call_count, "Callback should fire exactly once");
+}
+
 void setUp(void) {
     memset(&watchdogs_handler, 0, sizeof(watchdogs_handler));
     memset(&watchdog_1, 0, sizeof(watchdog_1));
@@ -502,6 +522,9 @@ int main(void) {
     RUN_TEST(test_watchdogs_routine_does_not_fire_non_expired_watchdog);
     RUN_TEST(test_watchdogs_routine_updates_prev_tick);
     RUN_TEST(test_watchdogs_routine_removes_timed_out_watchdogs_from_heap);
+
+    // GENERAL TESTS
+    RUN_TEST(test_watchdogs_stop_with_shared_callback_and_same_deadline_removes_correct_watchdog);
 
     return UNITY_END();
 }

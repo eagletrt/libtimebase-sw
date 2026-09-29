@@ -33,6 +33,10 @@ EAGLETRT_STATIC int8_t prv_watchdog_compare(void *watchdog_a, void *watchdog_b) 
      * In this case 1 is preferred because it avoid useless swaps between
      * elements that have the same number of ticks
      ***************************************************************************/
+    if (watchdog_f == watchdog_s) {
+        return 0;
+    }
+
     if (watchdog_f < watchdog_s) {
         return -1;
     }
