@@ -32,6 +32,8 @@
     "include/timebase/timebase.h",
     "include/tasks/tasks-api.h",
     "include/tasks/tasks.h"
+    "include/watchdogs/watchdogs-api.h",
+    "include/watchdogs/watchdogs.h"
   ],
   "examples": [
     {
@@ -41,6 +43,10 @@
     {
       "name": "Tasks Example",
       "files": "examples/tasks-example.c"
+    },
+    {
+      "name": "Watchdog Example",
+      "files": "examples/watchdog-example.c"
     }
   ],
   "export": {
@@ -63,6 +69,7 @@
     "flags": [
       "-Iinclude/timebase",
       "-Iinclude/tasks"
+      "-Iinclude/watchdogs"
     ]
   }
 }
