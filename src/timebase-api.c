@@ -38,8 +38,9 @@ enum TimebaseReturnCode timebase_inc_tick(struct TimebaseHandler *timebase_handl
     if (timebase_handler == NULL) {
         return TIMEBASE_RC_NULL_POINTER;
     }
-    if (!timebase_handler->enabled)
+    if (!timebase_handler->enabled) {
         return TIMEBASE_RC_DISABLED;
+    }
     ++timebase_handler->ticks;
     return TIMEBASE_RC_OK;
 }

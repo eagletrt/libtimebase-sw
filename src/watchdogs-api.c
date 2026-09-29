@@ -11,19 +11,19 @@
 
 /*!
  * \brief Compare two watchdogs based on their next trigger time.
- * \param a Pointer to the first watchdog.
- * \param b Pointer to the second watchdog.
+ * \param watchdog_a Pointer to the first watchdog.
+ * \param watchdog_b Pointer to the second watchdog.
  * \return -1 if the first watchdog should be scheduled before the second, 1 if after, 0 if equal.
  */
-EAGLETRT_STATIC int8_t prv_watchdog_compare(void *a, void *b) {
-    const struct Watchdog *const f = *(struct Watchdog **)a;
-    const struct Watchdog *const s = *(struct Watchdog **)b;
+EAGLETRT_STATIC int8_t prv_watchdog_compare(void *watchdog_a, void *watchdog_b) {
+    const struct Watchdog *const watchdog_f = *(struct Watchdog **)watchdog_a;
+    const struct Watchdog *const watchdog_s = *(struct Watchdog **)watchdog_b;
 
     // Compare timestamps
-    if (f->next_trigger < s->next_trigger) {
+    if (watchdog_f->next_trigger < watchdog_s->next_trigger) {
         return -1;
     }
-    if (f->next_trigger > s->next_trigger) {
+    if (watchdog_f->next_trigger > watchdog_s->next_trigger) {
         return 1;
     }
 
@@ -33,8 +33,8 @@ EAGLETRT_STATIC int8_t prv_watchdog_compare(void *a, void *b) {
      * In this case 1 is preferred because it avoid useless swaps between
      * elements that have the same number of ticks
      ***************************************************************************/
-    if (f->watchdog_callback == s->watchdog_callback) {
-        return 0;
+    if (watchdog_f < watchdog_s) {
+        return -1;
     }
     return 1;
 }

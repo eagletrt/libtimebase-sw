@@ -49,7 +49,7 @@ enum WatchdogReturnCode watchdogs_api_routine(struct WatchdogHandler *watchdogs_
  * \retval WATCHDOG_RC_ERROR An error occurred during the initialization of the watchdog
  * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watchdog, uint32_t timeout, timeout_callback callback);
+enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *watchdog, uint32_t timeout, timeout_callback callback);
 
 /*!
  * \brief Start a watchdog
@@ -67,7 +67,7 @@ enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watch
  * \retval WATCHDOG_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_watchdog_start(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick);
+enum WatchdogReturnCode watchdogs_api_watchdog_start(struct WatchdogHandler *watchdogs_handler, struct Watchdog *watchdog, uint32_t current_tick);
 
 /*!
  * \brief Stop a watchdog
@@ -82,7 +82,7 @@ enum WatchdogReturnCode watchdogs_api_watchdog_start(struct WatchdogHandler *con
  * \retval WATCHDOG_RC_TIMED_OUT The watchdog has already timed out
  * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_watchdog_stop(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog);
+enum WatchdogReturnCode watchdogs_api_watchdog_stop(struct WatchdogHandler *watchdogs_handler, struct Watchdog *watchdog);
 
 /*!
  * \brief Restarts a watchdog no matter its state
@@ -97,7 +97,7 @@ enum WatchdogReturnCode watchdogs_api_watchdog_stop(struct WatchdogHandler *cons
  * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
  * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_watchdog_restart(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick);
+enum WatchdogReturnCode watchdogs_api_watchdog_restart(struct WatchdogHandler *watchdogs_handler, struct Watchdog *watchdog, uint32_t current_tick);
 
 /*!
  * \brief Replenishes the watchdog internal time
@@ -114,7 +114,7 @@ enum WatchdogReturnCode watchdogs_api_watchdog_restart(struct WatchdogHandler *c
  * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
  * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick);
+enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *watchdogs_handler, struct Watchdog *watchdog, uint32_t current_tick);
 
 /*!
  * \brief Check if the watchdog is running
@@ -123,7 +123,7 @@ enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *const
  *
  * \returns bool True if the watchdog is running, false otherwise
  */
-bool watchdogs_api_watchdog_is_running(struct Watchdog *const watchdog);
+bool watchdogs_api_watchdog_is_running(struct Watchdog *watchdog);
 
 /*!
  * \brief Check if the watchdog has timed out
@@ -132,6 +132,6 @@ bool watchdogs_api_watchdog_is_running(struct Watchdog *const watchdog);
  *
  * \returns bool True if the watchdog has timed out, false otherwise
  */
-bool watchdogs_api_watchdog_is_timed_out(struct Watchdog *const watchdog);
+bool watchdogs_api_watchdog_is_timed_out(struct Watchdog *watchdog);
 
 #endif /* WATCHDOGS_API_H */

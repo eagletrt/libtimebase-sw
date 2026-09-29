@@ -21,7 +21,7 @@
  * \retval TIMEBASE_RC_NULL_POINTER if the timebase_handler pointer is NULL
  * \retval TIMEBASE_RC_OK otherwise
  */
-enum TimebaseReturnCode timebase_api_init(struct TimebaseHandler *timebase_handler, const uint32_t resolution_ms);
+enum TimebaseReturnCode timebase_api_init(struct TimebaseHandler *timebase_handler, uint32_t resolution_ms);
 
 /*!
  * \brief Enable or disable the timebase
@@ -32,7 +32,7 @@ enum TimebaseReturnCode timebase_api_init(struct TimebaseHandler *timebase_handl
  * \retval TIMEBASE_RC_NULL_POINTER if the timebase_handler pointer is NULL
  * \retval TIMEBASE_RC_OK otherwise
  */
-enum TimebaseReturnCode timebase_set_enable(struct TimebaseHandler *timebase_handler, const bool enabled);
+enum TimebaseReturnCode timebase_set_enable(struct TimebaseHandler *timebase_handler, bool enabled);
 
 /*!
  * \brief Increment the internal timebase by one tick

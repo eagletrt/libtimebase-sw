@@ -10,19 +10,19 @@
 
 /*!
  * \brief Compares two tasks based on their next trigger times
- * \param a pointer to the first task
- * \param b pointer to the second task
+ * \param task_a pointer to the first task
+ * \param task_b pointer to the second task
  * \return -1 if the first task should be scheduled before the second, 1 if it should be scheduled after, 0 if they are equal
  */
-EAGLETRT_STATIC int8_t prv_task_compare(void *a, void *b) {
-    const struct Task *const f = *(struct Task **)a;
-    const struct Task *const s = *(struct Task **)b;
+EAGLETRT_STATIC int8_t prv_task_compare(void *task_a, void *task_b) {
+    const struct Task *const task_f = *(struct Task **)task_a;
+    const struct Task *const task_s = *(struct Task **)task_b;
 
     // Compare timestamps
-    if (f->next_trigger < s->next_trigger) {
+    if (task_f->next_trigger < task_s->next_trigger) {
         return -1;
     }
-    if (f->next_trigger > s->next_trigger) {
+    if (task_f->next_trigger > task_s->next_trigger) {
         return 1;
     }
 
@@ -30,10 +30,10 @@ EAGLETRT_STATIC int8_t prv_task_compare(void *a, void *b) {
      * For the equality check, in addition to the ticks, the pointers to the
      * task must also be equal, otherwise -1 or 1 may be returned
      ***************************************************************************/
-    if (f->task_id < s->task_id) {
+    if (task_f->task_id < task_s->task_id) {
         return -1;
     }
-    if (f->task_id > s->task_id) {
+    if (task_f->task_id > task_s->task_id) {
         return 1;
     }
     return 0;
@@ -73,17 +73,17 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
         return TASKS_RC_INVALID_ID;
     }
 
-    enum TaskState from = tasks_handler->actual_state[task_id];
-    enum TaskState to = tasks_handler->task_list[task_id].state;
+    enum TaskState from_state = tasks_handler->actual_state[task_id];
+    enum TaskState to_state = tasks_handler->task_list[task_id].state;
 
-    if (from == to) {
+    if (from_state == to_state) {
         return TASKS_RC_OK;
     }
 
     struct Task *task = &tasks_handler->task_list[task_id];
 
     // Leaving ENABLED
-    if (from == TASKS_STATE_ENABLED) {
+    if (from_state == TASKS_STATE_ENABLED) {
         long idx = min_heap_api_find(&tasks_handler->scheduled_tasks, &task);
         if (idx < 0) {
             return TASKS_RC_ERROR;
@@ -95,11 +95,11 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
     }
 
     // Entering ENABLED
-    if (to == TASKS_STATE_ENABLED) {
+    if (to_state == TASKS_STATE_ENABLED) {
         // (task->next_trigger - task->last_update) is the remaining time to the next trigger when the task was paused, if the task was paused and there is still time to wait before the next trigger,
         // we can just add that remaining time to the current tick to get the new trigger time,
         // otherwise we can just calculate the trigger time from the start time of the task
-        if (from == TASKS_STATE_PAUSED && (int32_t)(task->next_trigger - task->last_update) >= 0) {
+        if (from_state == TASKS_STATE_PAUSED && (int32_t)(task->next_trigger - task->last_update) >= 0) {
             task->next_trigger = tick + (task->next_trigger - task->last_update);
         } else {
             tasks_handler->task_list[task_id].repeats = tasks_handler->task_list[task_id].int_repeats;
@@ -111,7 +111,7 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
     }
 
     // Transitions between PAUSED and DISABLED are just state updates, as the next trigger time is calculated only when entering ENABLED
-    tasks_handler->actual_state[task_id] = to;
+    tasks_handler->actual_state[task_id] = to_state;
     return TASKS_RC_OK;
 }
 
@@ -131,9 +131,9 @@ EAGLETRT_STATIC enum TasksReturnCode prv_tasks_update_heap(struct TasksHandler *
     }
 
     for (int i = 0; i < tasks_handler->task_num; i++) {
-        enum TasksReturnCode rc = prv_handle_task_transition(tasks_handler, i, current_tick);
-        if (rc != TASKS_RC_OK) {
-            return rc;
+        enum TasksReturnCode return_code = prv_handle_task_transition(tasks_handler, i, current_tick);
+        if (return_code != TASKS_RC_OK) {
+            return return_code;
         }
     }
     return TASKS_RC_OK;
@@ -329,10 +329,10 @@ enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, c
     }
 
     task->state = TASKS_STATE_DISABLED;
-    enum TasksReturnCode rc = prv_handle_task_transition(tasks_handler, task_id, current_tick);
-    if (rc != TASKS_RC_OK) {
+    enum TasksReturnCode return_code = prv_handle_task_transition(tasks_handler, task_id, current_tick);
+    if (return_code != TASKS_RC_OK) {
         task->state = original_state; // Restore the original state in case of error
-        return rc;
+        return return_code;
     }
     task->state = original_state;
 

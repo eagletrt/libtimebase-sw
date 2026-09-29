@@ -116,6 +116,6 @@ enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint
  * \retval TASKS_RC_ERROR An error occurred during the operation
  * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
-enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, const uint8_t task_id, uint16_t new_interval, uint16_t new_start, uint8_t repeats, uint32_t current_tick);
+enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint16_t new_interval, uint16_t new_start, uint8_t repeats, uint32_t current_tick);
 
 #endif // TASKS_API_H
