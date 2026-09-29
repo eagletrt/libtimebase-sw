@@ -31,7 +31,7 @@
     "include/timebase/timebase-api.h",
     "include/timebase/timebase.h",
     "include/tasks/tasks-api.h",
-    "include/tasks/tasks.h"
+    "include/tasks/tasks.h",
     "include/watchdogs/watchdogs-api.h",
     "include/watchdogs/watchdogs.h"
   ],
@@ -68,7 +68,7 @@
   "build": {
     "flags": [
       "-Iinclude/timebase",
-      "-Iinclude/tasks"
+      "-Iinclude/tasks",
       "-Iinclude/watchdogs"
     ]
   }
