@@ -19,10 +19,10 @@ DEFINE_FFF_GLOBALS;
 
 struct TasksHandler tasks_handler;
 
-FAKE_VOID_FUNC(function_1);
-FAKE_VOID_FUNC(function_2);
-FAKE_VOID_FUNC(function_3);
-FAKE_VOID_FUNC(function_4);
+FAKE_VOID_FUNC(function_1, uint8_t);
+FAKE_VOID_FUNC(function_2, uint8_t);
+FAKE_VOID_FUNC(function_3, uint8_t);
+FAKE_VOID_FUNC(function_4, uint8_t);
 
 enum TasksNames {
     TASK_1 = 0,
@@ -1060,6 +1060,201 @@ void test_tasks_get_task_with_valid_id_returns_ok_and_copies_task(void) {
     TEST_ASSERT_EQUAL_UINT16_MESSAGE(5U, task.start, "Task start should be copied correctly");
 }
 
+void test_tasks_routine_passes_task_id_to_callback(void) {
+    enum TasksReturnCode rc;
+
+    rc = tasks_api_routine(&tasks_handler, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task function 1 should have been called once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_1, function_1_fake.arg0_val, "Callback should receive the ID of Task 1");
+}
+
+void test_tasks_routine_passes_correct_task_id_to_each_callback(void) {
+    enum TasksReturnCode rc;
+
+    rc = tasks_api_routine(&tasks_handler, 4U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+
+    rc = tasks_api_routine(&tasks_handler, 12U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task function 1 should have been called twice");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_1, function_1_fake.arg0_history[0], "First call of Task 1 should receive TASK_1");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_1, function_1_fake.arg0_history[1], "Second call of Task 1 should receive TASK_1");
+
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_3_fake.call_count, "Task function 3 should have been called once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_3, function_3_fake.arg0_val, "Callback of Task 3 should receive TASK_3");
+
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, function_2_fake.call_count, "Task function 2 should not have been called");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, function_4_fake.call_count, "Task function 4 should not have been called");
+}
+
+void test_tasks_routine_passes_non_zero_task_id_to_callback(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 0U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_api_routine(&tasks_handler, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_2_fake.call_count, "Task function 2 should have been called once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_2, function_2_fake.arg0_val, "Callback of Task 2 should receive TASK_2 (non-zero ID)");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, function_1_fake.call_count, "Task function 1 should not have been called");
+}
+
+void test_tasks_routine_passes_own_task_id_to_all_callbacks_when_all_enabled(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 0U },
+        { .task_id = TASK_3, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_3, .interval = 15U, .start = 0U },
+        { .task_id = TASK_4, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_api_routine(&tasks_handler, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task function 1 should have been called once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_2_fake.call_count, "Task function 2 should have been called once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_3_fake.call_count, "Task function 3 should have been called once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_4_fake.call_count, "Task function 4 should have been called once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_1, function_1_fake.arg0_val, "Callback of Task 1 should receive TASK_1");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_2, function_2_fake.arg0_val, "Callback of Task 2 should receive TASK_2");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_3, function_3_fake.arg0_val, "Callback of Task 3 should receive TASK_3");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_4, function_4_fake.arg0_val, "Callback of Task 4 should receive TASK_4");
+}
+
+void test_tasks_routine_passes_task_id_on_every_repeat(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 3U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    for (uint32_t i = 0; i < 3U; ++i) {
+        rc = tasks_api_routine(&tasks_handler, i * 10U);
+        TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    }
+
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, function_1_fake.call_count, "Task should have fired three times");
+    for (uint8_t i = 0; i < 3U; ++i) {
+        TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_1, function_1_fake.arg0_history[i], "Every execution should receive TASK_1");
+    }
+}
+
+void test_tasks_routine_passes_task_id_after_pause_and_resume(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 3U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_api_routine(&tasks_handler, 0U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should have fired once");
+
+    tasks_api_pause_task(&tasks_handler, TASK_1, 5U);
+    rc = tasks_api_enable_task(&tasks_handler, TASK_1, 8U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+
+    rc = tasks_api_routine(&tasks_handler, 13U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task should have fired again after resume");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_1, function_1_fake.arg0_history[1], "Callback after resume should receive TASK_1");
+}
+
+void test_tasks_routine_passes_task_id_after_reenable_from_disabled(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_api_enable_task(&tasks_handler, TASK_2, 0U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+
+    rc = tasks_api_routine(&tasks_handler, 5U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_2_fake.call_count, "Enabled task should have been called once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_2, function_2_fake.arg0_val, "Callback of Task 2 should receive TASK_2");
+}
+
+void test_tasks_routine_passes_task_id_after_update_task(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_api_update_task(&tasks_handler, TASK_1, 10U, 0U, 5U, 0U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+
+    for (uint32_t i = 0; i < 5U; ++i) {
+        rc = tasks_api_routine(&tasks_handler, i * 10U);
+        TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    }
+
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(5U, function_1_fake.call_count, "Task should have fired five times");
+    for (uint8_t i = 0; i < 5U; ++i) {
+        TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_1, function_1_fake.arg0_history[i], "Every execution after update should receive TASK_1");
+    }
+}
+
+void test_tasks_routine_with_interval_set_to_zero_passes_task_id(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 0U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    rc = tasks_api_routine(&tasks_handler, 0U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+
+    rc = tasks_api_routine(&tasks_handler, 1U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task function should have been called twice");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_1, function_1_fake.arg0_history[0], "First call should receive TASK_1");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_1, function_1_fake.arg0_history[1], "Second call should receive TASK_1");
+}
+
 void setUp(void) {
     memset(&tasks_handler, 0, sizeof(tasks_handler));
     tasks_api_init(&tasks_handler, t_list, TASK_COUNT, 0U);
@@ -1154,6 +1349,18 @@ int main(void) {
     RUN_TEST(test_tasks_get_task_with_null_handler_returns_error);
     RUN_TEST(test_tasks_get_task_with_invalid_id_returns_error);
     RUN_TEST(test_tasks_get_task_with_valid_id_returns_ok_and_copies_task);
+
+    // CALLBACK TASK ID TESTS
+
+    RUN_TEST(test_tasks_routine_passes_task_id_to_callback);
+    RUN_TEST(test_tasks_routine_passes_correct_task_id_to_each_callback);
+    RUN_TEST(test_tasks_routine_passes_non_zero_task_id_to_callback);
+    RUN_TEST(test_tasks_routine_passes_own_task_id_to_all_callbacks_when_all_enabled);
+    RUN_TEST(test_tasks_routine_passes_task_id_on_every_repeat);
+    RUN_TEST(test_tasks_routine_passes_task_id_after_pause_and_resume);
+    RUN_TEST(test_tasks_routine_passes_task_id_after_reenable_from_disabled);
+    RUN_TEST(test_tasks_routine_passes_task_id_after_update_task);
+    RUN_TEST(test_tasks_routine_with_interval_set_to_zero_passes_task_id);
 
     return UNITY_END();
 }

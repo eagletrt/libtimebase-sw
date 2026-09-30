@@ -207,7 +207,7 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
         }
 
         // Execute the task
-        next_task->function();
+        next_task->function(next_task->task_id);
 
         next_task->last_update = current_tick;
 
