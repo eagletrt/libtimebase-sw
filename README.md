@@ -1,57 +1,193 @@
-# LIBSTM32-SW-TEMPLATE
+# TIMEBASE
 
-This repository serves as a template for libraries compatible with the
-[PlatformIO ecosystem](https://docs.platformio.org/en/latest/librarymanager/creating.html).
+This library contains all the functionality needed to set up and run periodic tasks and watchdogs in an embedded system, all driven by a single tick counter.
 
-## Usage
+## General architecture
 
-Before starting to develop the library, a couple of things need to be done:
-1. Change this README explaining the library and the functionalities that it offers
-2. Modify the `library.json` including:
-    - The **name** of the library
-    - The library **version**
-    - The **description** explaining what the library does and for which devices
-    - The list of **keywords**
-    - The repository **url** (and type if necessary)
-    - The list of **authors**
-    - The supported **frameworks** and **platforms** (if needed)
-    - The list of **header files** of the library
-    - The list of **examples**
-    - The file of the library to **export** (if needed)
-3. Modify the `Doxyfile`:
-    - change the `PROJECT_NAME` to the name of the library
-    - change the `VERSION` to the version of the library
+The library is divided into 3 main modules that can be used completely independently one from another.
 
-## Structure
+| Module | Purpose | Headers |
+|--------|---------|---------|
+| Timebase | Tick counter with tick <-> milliseconds conversion | `timebase.h`, `timebase-api.h` |
+| Tasks | Scheduler for periodic / one-shot / N-shot functions | `tasks.h`, `tasks-api.h` |
+| Watchdogs | Software watchdogs that fire a callback if not petted in time | `watchdogs.h`, `watchdogs-api.h` |
 
-The code of the library should be splitted in sources which must be placed inside
-the `src` folder and headers which must be placed inside the `include` folder.
+Tasks and watchdogs do **not** depend on the timebase module: they only need a monotonically increasing `uint32_t` tick, which can come from the timebase module or from any other source (HAL tick, RTOS tick, ...).
 
-Inside the `example` folder multiple source files should be placed to further
-explain how to use the library and how it works in different scenario.
+### Dependencies
 
-The library must be tested with the maximum possible code coverage, the source
-code used to run the unit tests should be put inside the `test` folder.
+ - `eagletrt-api.h`: common macros (`EAGLETRT_STATIC`, `EAGLETRT_VOLATILE`, `EAGLETRT_API_MAX`).
+ - `min-heap-api` and `arena-allocator-api`: used by tasks and watchdogs to keep the scheduled items ordered. All memory is static, each handler owns its own arena, nothing is allocated on the system heap.
+ - Unit tests use [Unity](https://github.com/ThrowTheSwitch/Unity) and [fff](https://github.com/meekrosoft/fff).
 
-If scripts or other tools are needed for the library they must be put inside
-the `tools` folder.
+### Common conventions
 
-No other folders should be created besides the ones described before if not
-necessary, to handle complex file structures nested folders can be used.
+ - Every function that depends on time takes a `current_tick` parameter. It is up to the user to provide it, the library never reads a clock by itself.
+ - **Temporal discontinuity**: if the given tick is lower than the last tick the module has seen, the function returns `*_RC_TEMPORAL_DISCONTINUITY` and does nothing. Time can only move forward.
+ - Every function checks its pointers and returns `*_RC_NULL_POINTER` if one of them is `NULL`.
+ - Callbacks (tasks functions and watchdog timeouts) are executed **inside the routine of their module**, never from an interrupt.
+ - The modules are not thread-safe. The only function meant to be called from an interrupt is `timebase_inc_tick`. Everything else (routines, enable/pause/start/pet, ...) must be called from the same context.
 
-For more info check the READMEs inside the corresponding folders.
+### Typical setup
 
-## Git Hooks
+```c
+#include "timebase-api.h"
+#include "tasks-api.h"
+#include "watchdogs-api.h"
 
-To setup git hooks in your local repository you will have to execute the following commands:
-```sh
-cd <library-name>
+enum TasksNames { TASK_LED = 0, TASK_LOG, TASK_COUNT };
+
+static struct TimebaseHandler timebase;
+static struct TasksHandler tasks;
+static struct WatchdogHandler watchdogs;
+static struct Watchdog can_watchdog = { 0 }; // must be zero-initialized
+
+static void led_toggle(void);
+static void log_status(void);
+static void can_timeout(void);
+
+static TaskList task_list = {
+    { .task_id = TASK_LED, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = led_toggle, .interval = 500U, .start = 0U },
+    { .task_id = TASK_LOG, .state = TASKS_STATE_ENABLED, .repeats = 3U, .function = log_status, .interval = 1000U, .start = 100U },
+};
+
+// Called every 1 ms by the hardware timer
+void SysTick_Handler(void) {
+    timebase_inc_tick(&timebase);
+}
+
+int main(void) {
+    timebase_api_init(&timebase, 1U);
+    timebase_set_enable(&timebase, true);
+
+    tasks_api_init(&tasks, task_list, TASK_COUNT, timebase_get_tick(&timebase));
+
+    watchdogs_api_init_pool(&watchdogs, timebase_get_tick(&timebase));
+    watchdogs_api_init_watchdog(&can_watchdog, 200U, can_timeout);
+    watchdogs_api_watchdog_start(&watchdogs, &can_watchdog, timebase_get_tick(&timebase));
+
+    for (;;) {
+        uint32_t now = timebase_get_tick(&timebase);
+        tasks_api_routine(&tasks, now);
+        watchdogs_api_routine(&watchdogs, now);
+    }
+}
 ```
 
-```sh
-chmod +x hooks/pre-commit
-```
+---
 
-```sh
-git config core.hooksPath hooks/
-```
+## Timebase module
+This module helps to convert from tick time into milliseconds. It is just an implementation of a counter with some converted getters.
+
+#### Usage
+ - `timebase_api_init(handler, resolution_ms)`: initializes the handler. `resolution_ms` is the number of milliseconds that a single tick represents, if 0 is given it defaults to 1. The counter is set to 0 and the timebase starts **disabled**. The handler must be allocated by the user.
+ - `timebase_set_enable(handler, enabled)`: starts or stops the counter.
+ - `timebase_inc_tick(handler)`: increments the counter by one tick, to be called from the timer interrupt. Returns `TIMEBASE_RC_DISABLED` (and does not increment) if the timebase is disabled.
+ - `timebase_get_tick(handler)`: the current number of ticks.
+ - `timebase_get_time(handler)`: the elapsed time in ms (`ticks * resolution`).
+ - `timebase_get_resolution(handler)`: the number of ms per tick.
+
+The getters return 0 if the handler is `NULL`. The macros `TIMEBASE_MS_TO_TICKS(T, RES)` and `TIMEBASE_TICKS_TO_MS(T, RES)` can be used to convert values at compile time.
+
+#### Behavior
+ - Disabling the timebase freezes the counter, it does not reset it. Re-initializing the handler resets the counter and disables it again.
+ - `TIMEBASE_MS_TO_TICKS` truncates. A duration smaller than the resolution converts to 0 ticks, keep this in mind when computing task intervals or watchdog timeouts (a watchdog with a timeout of 0 is rejected, a task interval of 0 is treated as 1).
+ - The counter is a `uint32_t`: at 1 ms per tick it wraps after about 49.7 days.
+
+---
+
+## Tasks module
+This module implements a task scheduler and all the functions needed for its functioning. Tasks are kept in a min-heap ordered by next trigger time (ties are broken by task ID), so the routine only has to look at the tasks that are actually due.
+
+#### Usage
+The user must provide to the initialization function `tasks_api_init` 4 parameters:
+ - `tasks_handler`: a pointer to a `TasksHandler` struct that will be used to handle the tasks module, this struct must be allocated by the user and it will be initialized by the library.
+ - `t_list`: a pointer to an array of `Task` structs that will be used to store the tasks information, this array must be initialized by the user. See the example in `examples/tasks-example.c` for more info. The list is **copied** into the handler, so it can be discarded after initialization.
+ - `num_tasks`: the number of tasks that the user wants to use, this number must be greater than 0 and less than or equal to `MAX_TASKS` (defined in `tasks.h`, 20 by default) and has to be the same as the number of tasks in `t_list`. The library cannot check the real length of the array, so a wrong value results in reading out of bounds.
+ - `current_tick`: the current tick time, this value is needed to correctly schedule the tasks and it is used to avoid temporal discontinuities. The user must provide the current tick time at the moment of initialization, if the user wants to initialize the module at time 0, this value should be 0.
+
+Once initialized, the user calls `tasks_api_routine(handler, current_tick)` periodically (e.g. in the main loop) and can enable, disable, pause and update the tasks as needed with `tasks_api_enable_task`, `tasks_api_pause_task`, `tasks_api_disable_task` and `tasks_api_update_task`, providing the current tick at the moment of the operation. `tasks_api_get_task` copies the current information of a task into a user provided `Task`.
+
+#### Task parameters
+The use of an enumerator is greatly recommended to define the task IDs, this way the code will be more readable and less error prone, but it is not mandatory as long as the user ensures that the task IDs are unique and sequential starting from 0. The parameters of each task are the following:
+ - `task_id`: the unique identifier of the task, this value must be unique and sequential starting from 0 (it must be equal to the index of the task in the list), it is used to identify the task in the API functions. (REQUIRED)
+ - `function`: a pointer to a function that will be called when the task is triggered, this function must be defined by the user and it must have the following signature: `void callback(void)`. (REQUIRED)
+ - `state`: the initial state of the task, this value can be either `TASKS_STATE_ENABLED` or `TASKS_STATE_DISABLED`. If it is not set the task starts disabled. A task cannot be initialized as paused.
+ - `repeats`: the number of times the task will fire, `0` means indefinitely, `1` means one-shot, `N` means exactly N times. If not set it defaults to 0. Maximum value is 255.
+ - `interval`: the time between two consecutive triggers, in ticks. If not set or set to 0 it is treated as 1. Maximum value is 65535.
+ - `start`: the delay, in ticks, between the moment the task is enabled and its first trigger. If not set it is 0, meaning the task fires the first time the routine is called. Maximum value is 65535.
+
+All the fields marked as required must be initialized by the user, otherwise the initialization fails with `TASKS_RC_INVALID_LIST`.
+
+#### Behavior
+When a task is enabled (at initialization or with `tasks_api_enable_task`) it is scheduled to run for the first time at `current_tick + start`. After each execution it is rescheduled at `previous_trigger + interval`, so the period does not drift even if the routine is called late. When a task with `repeats` has run for the requested number of times it is automatically **disabled**.
+
+The behavior of every state change is summarized in this table:
+
+| Transition | Behavior |
+|------------|----------|
+| same state -> same state | Nothing happens |
+| ENABLED -> PAUSED | The task is removed from the scheduler and the moment of the pause is remembered |
+| ENABLED -> DISABLED | The task is removed from the scheduler |
+| PAUSED -> ENABLED | If the task was not overdue when paused, it is scheduled at `current_tick + remaining_time`, where `remaining_time` is the time that was left until its next trigger at the moment of pausing. The number of repeats that were left is preserved. If the task was overdue when paused (its trigger time had already passed but the routine had not run yet), it behaves as a DISABLED -> ENABLED transition |
+| DISABLED -> ENABLED | The task is scheduled at `current_tick + start` and the repeats counter is reset to the initial value |
+| PAUSED -> DISABLED | Only the state changes. When enabled again the task restarts from the beginning |
+| DISABLED -> PAUSED | Not allowed, `tasks_api_pause_task` returns `TASKS_RC_ERROR` for a disabled task |
+
+`tasks_api_update_task(handler, id, new_interval, new_start, repeats, current_tick)` changes the parameters of a task, including the number of repeats (which also becomes the new initial value). If the task is enabled it is rescheduled immediately at `current_tick + new_start` with the repeats counter reset. If the task is paused or disabled the new values are just stored and the state does not change: a paused task keeps its remaining time, a disabled task uses the new `start` the next time it is enabled.
+
+Calling a function on a task that is already in the requested state (enable an enabled task, disable a disabled one, ...) is not an error and returns `TASKS_RC_OK`.
+
+#### Routine
+`tasks_api_routine` executes, in order, every task whose trigger time is less than or equal to `current_tick`. If the routine is called late, a task that missed several triggers is executed once for each missed trigger (all in the same call) until it has caught up, and each execution consumes one repeat. Choose a routine period that is small compared to the shortest task interval.
+
+#### Return codes
+`TASKS_RC_OK`, `TASKS_RC_INVALID_ID` (unknown task ID), `TASKS_RC_TEMPORAL_DISCONTINUITY`, `TASKS_RC_NULL_POINTER`, `TASKS_RC_INVALID_LIST` (bad list given to init) and `TASKS_RC_ERROR` (internal error, for example a heap operation failed, or trying to pause a disabled task).
+
+---
+
+## Watchdogs module
+This module implements generic software watchdogs. A watchdog has a timeout in ticks and a callback: if the watchdog is not "petted" before the timeout expires, the callback is executed by the routine. Running watchdogs are kept in a min-heap ordered by expiration time.
+
+#### Usage
+ - `watchdogs_api_init_pool(handler, current_tick)`: initializes the watchdog handler that contains all the scheduled watchdogs. The handler must be allocated by the user. At most `MAX_WATCHDOGS` (defined in `watchdogs.h`, 20 by default) can run at the same time.
+ - `watchdogs_api_init_watchdog(watchdog, timeout, callback)`: initializes a single watchdog. `timeout` is in ticks and must be greater than 0, `callback` has the signature `void callback(void)` and must not be `NULL`. The `struct Watchdog` must be **zero-initialized** before the call (`struct Watchdog wd = { 0 };` or a static variable), and a watchdog can be initialized only once.
+ - `watchdogs_api_watchdog_start(handler, watchdog, current_tick)`: starts the watchdog, it will expire at `current_tick + timeout`.
+ - `watchdogs_api_watchdog_stop(handler, watchdog)`: stops a running watchdog without firing the callback.
+ - `watchdogs_api_watchdog_pet(handler, watchdog, current_tick)`: replenishes a running watchdog, the new expiration is `current_tick + timeout`. This is the function to call periodically from the code that is being supervised.
+ - `watchdogs_api_watchdog_restart(handler, watchdog, current_tick)`: starts the watchdog no matter its state. It is the only way to bring a timed-out watchdog back to life.
+ - `watchdogs_api_watchdog_is_running(watchdog)` / `watchdogs_api_watchdog_is_timed_out(watchdog)`: state getters, they return `false` for a `NULL` watchdog.
+ - `watchdogs_api_routine(handler, current_tick)`: to be called periodically, it checks which watchdogs have expired and executes their callbacks.
+
+The `struct Watchdog` is owned by the user and must stay valid (and at the same address) for as long as it is running, since the handler stores a pointer to it.
+
+#### Behavior
+A watchdog can be in one of three states:
+
+| State | Meaning | Allowed operations |
+|-------|---------|--------------------|
+| `WATCHDOG_STATE_NOT_RUNNING` | Initialized (or stopped), not scheduled | `start`, `restart` |
+| `WATCHDOG_STATE_RUNNING` | Scheduled in the heap | `stop`, `pet`, `restart` |
+| `WATCHDOG_STATE_TIMED_OUT` | Expired, callback has been called, no longer scheduled | `restart` only |
+
+`start` on a running watchdog returns `WATCHDOG_RC_BUSY`. `start`, `stop` and `pet` on a timed-out watchdog return `WATCHDOG_RC_TIMED_OUT`. `stop` and `pet` on a watchdog that is not running return `WATCHDOG_RC_NOT_RUNNING`. Any operation on a watchdog that was never initialized returns `WATCHDOG_RC_UNINITIALIZED`.
+
+When the routine finds an expired watchdog (`next_trigger <= current_tick`) it sets its state to `TIMED_OUT`, removes it from the heap and then calls its callback, so a callback can safely call `watchdogs_api_watchdog_restart` on its own watchdog to re-arm it.
+
+Unlike the tasks module, the watchdogs module records the last tick only inside `watchdogs_api_routine`: `start`, `stop`, `pet` and `restart` compare the given tick with the tick of the last routine call but do not update it.
+
+#### Return codes
+`WATCHDOG_RC_OK`, `WATCHDOG_RC_NULL_POINTER`, `WATCHDOG_RC_TIMED_OUT`, `WATCHDOG_RC_TEMPORAL_DISCONTINUITY`, `WATCHDOG_RC_ERROR`, `WATCHDOG_RC_BUSY`, `WATCHDOG_RC_NOT_RUNNING`, `WATCHDOG_RC_UNINITIALIZED`.
+
+---
+
+## Known limitations
+
+ - **Tick wrap-around**: ticks are `uint32_t` and the modules compare them directly, so after the counter wraps (about 49.7 days at 1 ms per tick) the schedule breaks and calls are rejected as temporal discontinuity. Re-initialize the modules before that happens if the system can stay up that long.
+ - **Late routine calls**: see the routine section of the tasks module, missed triggers are all executed on the next call.
+ - **Tasks managing themselves**: a task's callback must not disable, pause or update its own task, because while a task is executing it is not in the scheduler. Managing *other* tasks from a callback is fine.
+ - **Callback duration**: callbacks run inside the routines, a long callback delays every other task and watchdog.
+ - **Limits**: at most `MAX_TASKS` tasks and `MAX_WATCHDOGS` watchdogs; `interval` and `start` are 16 bit, `repeats` is 8 bit.
+
+## Tests
+Unit tests for each module are in `test-timebase.c`, `test-tasks.c` and `test-watchdogs.c`.

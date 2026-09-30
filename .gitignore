@@ -419,4 +419,10 @@ STM32Make.make
 #in case git exclude is not used
 .local_gitignore
 
+platformio.ini
+scripts/**
+
+
+scripts/**
+
 ## ---------------- END MANUALLY ADDED ---------------- ##
