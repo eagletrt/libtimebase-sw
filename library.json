@@ -47,6 +47,10 @@
     {
       "name": "Watchdog Example",
       "files": "examples/watchdog-example.c"
+    },
+    {
+      "name": "Unified Example",
+      "files": "examples/unified-example.c"
     }
   ],
   "export": {

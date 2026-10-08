@@ -18,42 +18,43 @@
  * \param tasks_handler The pointer to the tasks handler structure, must not be NULL
  * \param t_list The list of tasks to initialize, must not be NULL and must contain at least one task, all the tasks must have a unique identifier starting from 0 and sequential, no task can be initialized to paused state
  * \param num_tasks The number of tasks in the list, must be greater than 0 and less than or equal to MAX_TASKS
- * \param current_tick The current tick count, used to calculate the next trigger time of the tasks
+ * \param get_tick The function that returns the current tick, must not be NULL. Any tick source can be used, for
+ * example a wrapper around timebase_get_tick, the HAL tick or the RTOS tick. It is called once to schedule the tasks
+ * and its value is used as the starting point for the temporal continuity check
  * 
  * \retval TASKS_RC_OK The operation was successful
- * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
+ * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument (the handler, the list or the tick getter)
  * \retval TASKS_RC_INVALID_LIST The given list of tasks is not valid, either because it contains a null task, because the number of tasks is 0 or greater than MAX_TASKS or because the task IDs are not unique and sequential starting from 0
  * \retval TASKS_RC_ERROR An error occurred during the operation
  */
-enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList t_list, uint8_t num_tasks, uint32_t current_tick);
+enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList t_list, uint8_t num_tasks, task_tick_callback get_tick);
 
 /*!
  * \brief Routine to be called in the main loop to execute the scheduled tasks
  *
  * \details Before the callback of a task is called, the task is already updated: it is rescheduled at its next
  * trigger and its repeat is consumed, or it is already disabled if it was its last repeat. For this reason a
- * callback can safely enable, pause, disable or update its own task (or any other task), as long as the tick it
- * gives to the API is not lower than the last tick seen by the module.
+ * callback can safely enable, pause, disable or update its own task (or any other task). Every API call made from
+ * a callback reads the tick again, so it uses the time of the call. The routine itself reads the tick once, at its
+ * beginning, so every task that is due is compared against the same instant.
  *
  * \attention A callback that reschedules its own task at the current tick (e.g. re-enabling a one-shot task with
- * start set to 0) makes the task due again in the same call, so the routine never returns
+ * start set to 0) makes the task due again in the same call if the tick has not advanced, so the routine never returns
  *
  * \param tasks_handler The pointer to the tasks handler structure, must not be NULL
- * \param current_tick The current tick count, used to check if any task needs to be executed
  * 
  * \retval TASKS_RC_OK The operation was successful
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
  * \retval TASKS_RC_ERROR An error occurred during the operation
  * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
-enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint32_t current_tick);
+enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler);
 
 /*!
  * \brief Enables a single task
  *
  * \param tasks_handler The pointer to the tasks handler structure, must not be NULL
  * \param task_id The identifier of the task
- * \param current_tick The current tick count
  * 
  * \retval TASKS_RC_OK The operation was successful
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
@@ -61,14 +62,13 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
  * \retval TASKS_RC_ERROR An error occurred during the operation
  * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
-enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick);
+enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, uint8_t task_id);
 
 /*!
  * \brief Pauses a single task, the task can be resumed from where it was paused
  *
  * \param tasks_handler The pointer to the tasks handler structure, must not be NULL
  * \param task_id The identifier of the task
- * \param current_tick The current tick count
  * 
  * \retval TASKS_RC_OK The operation was successful
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
@@ -76,14 +76,13 @@ enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, u
  * \retval TASKS_RC_ERROR An error occurred during the operation
  * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
-enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick);
+enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, uint8_t task_id);
 
 /*!
  * \brief Disables a single task, the task will be restarted from the beginning when enabled again
  *
  * \param tasks_handler The pointer to the tasks handler structure, must not be NULL
  * \param task_id The identifier of the task
- * \param current_tick The current tick count
  * 
  * \retval TASKS_RC_OK The operation was successful
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
@@ -91,7 +90,7 @@ enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, ui
  * \retval TASKS_RC_ERROR An error occurred during the operation
  * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
-enum TasksReturnCode tasks_api_disable_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick);
+enum TasksReturnCode tasks_api_disable_task(struct TasksHandler *tasks_handler, uint8_t task_id);
 
 /*!
  * \brief Get a single task information
@@ -116,7 +115,6 @@ enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint
  * \param new_interval The new interval of the task
  * \param new_start The new start time of the task
  * \param repeats The amount of times the task will fire (0 = infinite, 1 = one-shot, ecc...)
- * \param current_tick The current tick count
  * 
  * \retval TASKS_RC_OK The operation was successful
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument
@@ -124,6 +122,6 @@ enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint
  * \retval TASKS_RC_ERROR An error occurred during the operation
  * \retval TASKS_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
  */
-enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint16_t new_interval, uint16_t new_start, uint8_t repeats, uint32_t current_tick);
+enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint16_t new_interval, uint16_t new_start, uint8_t repeats);
 
 #endif // TASKS_API_H
