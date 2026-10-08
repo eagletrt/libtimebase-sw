@@ -111,7 +111,7 @@ Once initialized, the user calls `tasks_api_routine(handler, current_tick)` peri
 #### Task parameters
 The use of an enumerator is greatly recommended to define the task IDs, this way the code will be more readable and less error prone, but it is not mandatory as long as the user ensures that the task IDs are unique and sequential starting from 0. The parameters of each task are the following:
  - `task_id`: the unique identifier of the task, this value must be unique and sequential starting from 0 (it must be equal to the index of the task in the list), it is used to identify the task in the API functions. (REQUIRED)
- - `function`: a pointer to a function that will be called when the task is triggered, this function must be defined by the user and it must have the following signature: `void callback(void)`. (REQUIRED)
+ - `function`: a pointer to a function that will be called when the task is triggered, this function must be defined by the user and it must have the following signature: `void callback(uint8_t task_id)`, where `task_id` is the ID of the task that is being executed. (REQUIRED)
  - `state`: the initial state of the task, this value can be either `TASKS_STATE_ENABLED` or `TASKS_STATE_DISABLED`. If it is not set the task starts disabled. A task cannot be initialized as paused.
  - `repeats`: the number of times the task will fire, `0` means indefinitely, `1` means one-shot, `N` means exactly N times. If not set it defaults to 0. Maximum value is 255.
  - `interval`: the time between two consecutive triggers, in ticks. If not set or set to 0 it is treated as 1. Maximum value is 65535.
@@ -140,6 +140,19 @@ Calling a function on a task that is already in the requested state (enable an e
 
 #### Routine
 `tasks_api_routine` executes, in order, every task whose trigger time is less than or equal to `current_tick`. If the routine is called late, a task that missed several triggers is executed once for each missed trigger (all in the same call) until it has caught up, and each execution consumes one repeat. Choose a routine period that is small compared to the shortest task interval.
+
+#### Managing tasks from a callback
+A callback can call any function of the tasks API, **including on its own task** (`tasks_api_disable_task`, `tasks_api_pause_task`, `tasks_api_enable_task`, `tasks_api_update_task`). To make this possible the routine updates the task *before* calling its callback: the task is already rescheduled at its next trigger (`previous_trigger + interval`) and its repeat has already been consumed. If it was the last repeat the task is already `DISABLED`. This means that, from inside the callback:
+
+ - **Disable**: the task does not run again. The call returns `TASKS_RC_OK`.
+ - **Pause**: the time left until the next trigger is preserved, so a later enable resumes the task with that remaining time. If the routine is running late and the next trigger is already overdue, the pause behaves as described in the `PAUSED -> ENABLED` row of the table above.
+ - **Update**: the task is rescheduled with the new parameters, as if `tasks_api_update_task` had been called from outside the routine.
+ - **Enable on the last repeat**: a task that has just consumed its last repeat is already `DISABLED`, so enabling it from its own callback restarts it from the beginning (`current_tick + start`, repeats reset).
+ - **Enable/disable of other tasks**: works as usual.
+
+The `current_tick` passed to these calls must not be lower than the last tick the module has seen, otherwise they return `TASKS_RC_TEMPORAL_DISCONTINUITY`. Use the same tick that was given to the routine, or a later one.
+
+**Warning**: if a callback reschedules its own task at the current tick (for example re-enabling a one-shot task with `start` set to 0, or updating itself with `new_start` set to 0), the task is due again in the same call of the routine, runs again, and so on: the routine never returns. Use a `start` greater than 0 for tasks that restart themselves.
 
 #### Return codes
 `TASKS_RC_OK`, `TASKS_RC_INVALID_ID` (unknown task ID), `TASKS_RC_TEMPORAL_DISCONTINUITY`, `TASKS_RC_NULL_POINTER`, `TASKS_RC_INVALID_LIST` (bad list given to init) and `TASKS_RC_ERROR` (internal error, for example a heap operation failed, or trying to pause a disabled task).
@@ -185,7 +198,7 @@ Unlike the tasks module, the watchdogs module records the last tick only inside 
 
  - **Tick wrap-around**: ticks are `uint32_t` and the modules compare them directly, so after the counter wraps (about 49.7 days at 1 ms per tick) the schedule breaks and calls are rejected as temporal discontinuity. Re-initialize the modules before that happens if the system can stay up that long.
  - **Late routine calls**: see the routine section of the tasks module, missed triggers are all executed on the next call.
- - **Tasks managing themselves**: a task's callback must not disable, pause or update its own task, because while a task is executing it is not in the scheduler. Managing *other* tasks from a callback is fine.
+ - **Tasks restarting themselves**: a callback can manage its own task (see the tasks module), but a task that reschedules itself at the current tick (`start` equal to 0) makes the routine loop forever.
  - **Callback duration**: callbacks run inside the routines, a long callback delays every other task and watchdog.
  - **Limits**: at most `MAX_TASKS` tasks and `MAX_WATCHDOGS` watchdogs; `interval` and `start` are 16 bit, `repeats` is 8 bit.
 

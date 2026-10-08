@@ -17,7 +17,6 @@
 #include <eagletrt-api.h>
 
 #include <min-heap-api.h>
-#include <sys/types.h>
 
 /*!
  * \brief The max number of tasks that can be initialized
@@ -26,6 +25,7 @@
 
 /*! 
  * \brief The callback signature of a task
+ * \details The callback is executed by the routine and can call the tasks API, also on its own task
  * \param task_id The ID of the task that is being executed
  */
 typedef void (*task_definition)(uint8_t task_id);

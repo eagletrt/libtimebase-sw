@@ -206,16 +206,14 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
             break;
         }
 
-        // Execute the task
-        next_task->function(next_task->task_id);
-
+        // Make the task state consistent
         next_task->last_update = current_tick;
 
         if (next_task->int_repeats > 0) {
             --(next_task->repeats);
         }
 
-        if ((next_task->repeats > 0 || next_task->int_repeats == 0) && next_task->state == TASKS_STATE_ENABLED) {
+        if ((next_task->repeats > 0 || next_task->int_repeats == 0)) {
 
             // Update the next trigger time
             next_task->next_trigger += EAGLETRT_API_MAX(next_task->interval, 1U);
@@ -229,6 +227,9 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
             next_task->state = TASKS_STATE_DISABLED;
             tasks_handler->actual_state[next_task->task_id] = TASKS_STATE_DISABLED;
         }
+
+        // Run the task's callback function
+        next_task->function(next_task->task_id);
 
         if (min_heap_api_is_empty(&tasks_handler->scheduled_tasks)) {
             break;

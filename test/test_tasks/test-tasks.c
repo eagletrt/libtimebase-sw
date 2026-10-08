@@ -1255,6 +1255,221 @@ void test_tasks_routine_with_interval_set_to_zero_passes_task_id(void) {
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASK_1, function_1_fake.arg0_history[1], "Second call should receive TASK_1");
 }
 
+/*
+ * CALLBACK REENTRANCY TESTS
+ *
+ * A task callback must be able to change the state of its own task. To make this possible the routine reschedules
+ * (or retires) the task BEFORE calling its callback, so that the callback finds a consistent handler.
+ */
+
+static uint32_t callback_tick;
+static enum TasksReturnCode callback_rc;
+
+static void callback_disable_self(uint8_t task_id) {
+    callback_rc = tasks_api_disable_task(&tasks_handler, task_id, callback_tick);
+}
+
+static void callback_pause_self(uint8_t task_id) {
+    callback_rc = tasks_api_pause_task(&tasks_handler, task_id, callback_tick);
+}
+
+static void callback_enable_self(uint8_t task_id) {
+    callback_rc = tasks_api_enable_task(&tasks_handler, task_id, callback_tick);
+}
+
+static void callback_update_self(uint8_t task_id) {
+    callback_rc = tasks_api_update_task(&tasks_handler, task_id, 20U, 3U, 0U, callback_tick);
+}
+
+static void callback_disable_task_2(uint8_t task_id) {
+    (void)task_id;
+    callback_rc = tasks_api_disable_task(&tasks_handler, TASK_2, callback_tick);
+}
+
+void test_tasks_routine_callback_can_disable_its_own_task(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    callback_tick = 0U;
+    function_1_fake.custom_fake = callback_disable_self;
+
+    rc = tasks_api_routine(&tasks_handler, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code from the routine");
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, callback_rc, "The disable called inside the callback should succeed");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should have fired once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.task_list[TASK_1].state, "Task state should be DISABLED");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[TASK_1], "Actual state should be DISABLED");
+    TEST_ASSERT_TRUE_MESSAGE(min_heap_api_is_empty(&tasks_handler.scheduled_tasks), "The disabled task should not be in the heap");
+
+    rc = tasks_api_routine(&tasks_handler, 10U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code from the routine");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "A task that disabled itself should not fire again");
+}
+
+void test_tasks_routine_callback_can_pause_its_own_task_and_resume_with_remaining_time(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    callback_tick = 0U;
+    function_1_fake.custom_fake = callback_pause_self;
+
+    rc = tasks_api_routine(&tasks_handler, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code from the routine");
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, callback_rc, "The pause called inside the callback should succeed");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_PAUSED, tasks_handler.task_list[TASK_1].state, "Task state should be PAUSED and not overwritten by the routine");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_PAUSED, tasks_handler.actual_state[TASK_1], "Actual state should be PAUSED");
+    TEST_ASSERT_TRUE_MESSAGE(min_heap_api_is_empty(&tasks_handler.scheduled_tasks), "The paused task should not be in the heap");
+
+    function_1_fake.custom_fake = NULL;
+
+    rc = tasks_api_routine(&tasks_handler, 10U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code from the routine");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "A paused task should not fire");
+
+    // Paused with a full interval left (10 ticks): resuming at 20 must schedule the next call at 30
+    rc = tasks_api_enable_task(&tasks_handler, TASK_1, 20U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(30U, tasks_handler.task_list[TASK_1].next_trigger, "The remaining time at the moment of the pause should be preserved");
+
+    rc = tasks_api_routine(&tasks_handler, 29U);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should not fire before the resumed trigger");
+
+    rc = tasks_api_routine(&tasks_handler, 30U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code from the routine");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task should fire at the resumed trigger");
+}
+
+void test_tasks_routine_callback_can_update_its_own_task(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    callback_tick = 0U;
+    function_1_fake.custom_fake = callback_update_self; // New schedule: start = 3, interval = 20
+
+    rc = tasks_api_routine(&tasks_handler, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code from the routine");
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, callback_rc, "The update called inside the callback should succeed");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should have fired once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[TASK_1], "Task should still be ENABLED");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(3U, tasks_handler.task_list[TASK_1].next_trigger, "Task should be rescheduled according to the new start");
+
+    function_1_fake.custom_fake = NULL;
+
+    rc = tasks_api_routine(&tasks_handler, 2U);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should not fire before the new start");
+
+    // If the task was inserted twice in the heap it would fire twice in the same routine
+    rc = tasks_api_routine(&tasks_handler, 3U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code from the routine");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task should fire exactly once at the new start");
+
+    rc = tasks_api_routine(&tasks_handler, 22U);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task should not fire before the new interval has elapsed");
+
+    rc = tasks_api_routine(&tasks_handler, 23U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code from the routine");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, function_1_fake.call_count, "Task should fire with the new interval");
+}
+
+void test_tasks_routine_callback_can_reenable_its_own_expired_one_shot_task(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 1U, .function = function_1, .interval = 10U, .start = 5U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    callback_tick = 5U;
+    function_1_fake.custom_fake = callback_enable_self;
+
+    rc = tasks_api_routine(&tasks_handler, 5U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code from the routine");
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, callback_rc, "The enable called inside the callback should succeed");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should have fired once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.task_list[TASK_1].state, "The routine should not disable a task that was re-enabled by its callback");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[TASK_1], "Actual state should be ENABLED");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(10U, tasks_handler.task_list[TASK_1].next_trigger, "Task should restart from its start time");
+
+    function_1_fake.custom_fake = NULL;
+
+    rc = tasks_api_routine(&tasks_handler, 9U);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should not fire before the new start");
+
+    rc = tasks_api_routine(&tasks_handler, 10U);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code from the routine");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task should fire again after being re-enabled");
+
+    rc = tasks_api_routine(&tasks_handler, 30U);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "A one-shot task should fire only once per enable");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[TASK_1], "The expired task should end up DISABLED");
+}
+
+void test_tasks_routine_callback_can_disable_another_task(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_2, .interval = 10U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, 0U);
+
+    callback_tick = 0U;
+    function_1_fake.custom_fake = callback_disable_task_2;
+
+    rc = tasks_api_routine(&tasks_handler, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code from the routine");
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, callback_rc, "Disabling another task from a callback should succeed");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[TASK_2], "The other task should be DISABLED");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[TASK_1], "The calling task should still be ENABLED");
+
+    function_1_fake.custom_fake = NULL;
+
+    rc = tasks_api_routine(&tasks_handler, 10U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code from the routine");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "The calling task should keep firing");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, function_2_fake.call_count, "The disabled task should never fire");
+}
+
 void setUp(void) {
     memset(&tasks_handler, 0, sizeof(tasks_handler));
     tasks_api_init(&tasks_handler, t_list, TASK_COUNT, 0U);
@@ -1263,6 +1478,9 @@ void setUp(void) {
     RESET_FAKE(function_2);
     RESET_FAKE(function_3);
     RESET_FAKE(function_4);
+
+    callback_tick = 0U;
+    callback_rc = TASKS_RC_ERROR;
 }
 
 void tearDown(void) {
@@ -1311,6 +1529,14 @@ int main(void) {
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_repeats_task_after_reenabled);
     RUN_TEST(test_tasks_routine_with_interval_set_to_zero_treats_as_one);
     RUN_TEST(test_tasks_routine_with_valid_parameters_executes_repeats_N_times);
+
+    // CALLBACK REENTRANCY TESTS
+
+    RUN_TEST(test_tasks_routine_callback_can_disable_its_own_task);
+    RUN_TEST(test_tasks_routine_callback_can_pause_its_own_task_and_resume_with_remaining_time);
+    RUN_TEST(test_tasks_routine_callback_can_update_its_own_task);
+    RUN_TEST(test_tasks_routine_callback_can_reenable_its_own_expired_one_shot_task);
+    RUN_TEST(test_tasks_routine_callback_can_disable_another_task);
 
     // TASK CONTROL TESTS
 

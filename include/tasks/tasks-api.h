@@ -30,6 +30,14 @@ enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList
 /*!
  * \brief Routine to be called in the main loop to execute the scheduled tasks
  *
+ * \details Before the callback of a task is called, the task is already updated: it is rescheduled at its next
+ * trigger and its repeat is consumed, or it is already disabled if it was its last repeat. For this reason a
+ * callback can safely enable, pause, disable or update its own task (or any other task), as long as the tick it
+ * gives to the API is not lower than the last tick seen by the module.
+ *
+ * \attention A callback that reschedules its own task at the current tick (e.g. re-enabling a one-shot task with
+ * start set to 0) makes the task due again in the same call, so the routine never returns
+ *
  * \param tasks_handler The pointer to the tasks handler structure, must not be NULL
  * \param current_tick The current tick count, used to check if any task needs to be executed
  * 

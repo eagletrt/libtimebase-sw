@@ -145,7 +145,7 @@ enum WatchdogReturnCode watchdogs_api_routine(struct WatchdogHandler *watchdogs_
     return WATCHDOG_RC_OK;
 }
 
-enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watchdog, uint32_t timeout, timeout_callback callback) {
+enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watchdog, uint32_t timeout, watchdog_timeout_callback callback) {
     if (watchdog == NULL || callback == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
     }

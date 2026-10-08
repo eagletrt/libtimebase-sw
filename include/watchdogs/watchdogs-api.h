@@ -49,7 +49,7 @@ enum WatchdogReturnCode watchdogs_api_routine(struct WatchdogHandler *watchdogs_
  * \retval WATCHDOG_RC_ERROR An error occurred during the initialization of the watchdog
  * \retval WATCHDOG_RC_OK Otherwise
  */
-enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *watchdog, uint32_t timeout, timeout_callback callback);
+enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *watchdog, uint32_t timeout, watchdog_timeout_callback callback);
 
 /*!
  * \brief Start a watchdog
