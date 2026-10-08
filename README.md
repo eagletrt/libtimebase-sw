@@ -152,7 +152,7 @@ The behavior of every state change is summarized in this table:
 Calling a function on a task that is already in the requested state (enable an enabled task, disable a disabled one, ...) is not an error and returns `TASKS_RC_OK`.
 
 #### Routine
-`tasks_api_routine` executes, in order, every task whose trigger time is less than or equal to the tick returned by the getter (read once at the beginning of the routine). If the routine is called late, a task that missed several triggers is executed once for each missed trigger (all in the same call) until it has caught up, and each execution consumes one repeat. Choose a routine period that is small compared to the shortest task interval.
+`tasks_api_routine` executes, in order, every task whose trigger time is less than or equal to the tick returned by the getter (read once at the beginning of the routine). If the routine is called late, a task that missed several triggers is executed once for each missed trigger (all in the same call) until it has caught up, and each execution consumes one repeat. Choose a routine period that is small compared to the shortest task interval, the counter for dropped tasks is updated accordingly and saturates at UINT16_MAX.
 
 #### Managing tasks from a callback
 A callback can call any function of the tasks API, **including on its own task** (`tasks_api_disable_task`, `tasks_api_pause_task`, `tasks_api_enable_task`, `tasks_api_update_task`). To make this possible the routine updates the task *before* calling its callback: the task is already rescheduled at its next trigger (`previous_trigger + interval`) and its repeat has already been consumed. If it was the last repeat the task is already `DISABLED`. This means that, from inside the callback:

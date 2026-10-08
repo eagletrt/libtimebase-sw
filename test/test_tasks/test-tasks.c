@@ -847,6 +847,11 @@ void test_tasks_pause_repeats_task_after_start_resumes_correctly(void) {
     current_tick = 0U;
     tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, fake_get_tick);
 
+    // The task fires at tick 10 (start elapsed), the next trigger is 20
+    current_tick = 10U;
+    tasks_api_routine(&tasks_handler);
+
+    // Pause mid-interval with 5 ticks remaining
     current_tick = 15U;
     tasks_api_pause_task(&tasks_handler, 0U);
 
@@ -854,7 +859,7 @@ void test_tasks_pause_repeats_task_after_start_resumes_correctly(void) {
     rc = tasks_api_enable_task(&tasks_handler, 0U);
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[0], "Task state should be updated to ENABLED");
-    TEST_ASSERT_EQUAL_UINT32_MESSAGE(30U, tasks_handler.task_list[0].next_trigger, "Next trigger time should be updated to current tick + remaining time until next trigger");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(25U, tasks_handler.task_list[0].next_trigger, "Next trigger time should be updated to current tick + remaining time until next trigger");
     TEST_ASSERT_FALSE_MESSAGE(min_heap_api_is_empty(&tasks_handler.scheduled_tasks), "Scheduled tasks heap should not be empty after resuming task");
 }
 
@@ -1749,6 +1754,314 @@ void test_tasks_routine_callback_api_calls_use_the_tick_at_call_time(void) {
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(28U, tasks_handler.task_list[TASK_1].next_trigger, "The remaining time should be measured from the tick at which the callback paused the task");
 }
 
+/*
+ * OVERDUE TASK TESTS
+ *
+ * When the routine is not called for a while, a periodic task must run only once (not once per missed interval) and
+ * continue on its original grid, while the skipped executions are counted. A task paused while overdue must be resumed
+ * without losing its repeats.
+ */
+
+/* Initializes the handler at tick 0 with TASK_1 enabled with the given parameters and every other task disabled */
+static void init_with_single_task(uint16_t interval, uint16_t start, uint8_t repeats) {
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = repeats, .function = function_1, .interval = interval, .start = start },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    current_tick = 0U;
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, fake_get_tick);
+}
+
+void test_tasks_handle_task_transition_resumes_overdue_paused_task_immediately_keeping_repeats(void) {
+    enum TasksReturnCode rc;
+
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_DISABLED, .repeats = 5U, .function = function_1, .interval = 10U, .start = 10U },
+        { .task_id = TASK_2, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 5U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 1U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    current_tick = 0U;
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, fake_get_tick);
+
+    // The task was paused at tick 20 when it should have already fired at tick 10, with 2 of its 5 repeats left
+    tasks_handler.task_list[0].state = TASKS_STATE_ENABLED;
+    tasks_handler.actual_state[0] = TASKS_STATE_PAUSED;
+    tasks_handler.task_list[0].next_trigger = 10U;
+    tasks_handler.task_list[0].last_update = 20U;
+    tasks_handler.task_list[0].repeats = 2U;
+
+    rc = prv_handle_task_transition(&tasks_handler, 0U, 30U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(30U, tasks_handler.task_list[0].next_trigger, "An overdue task should be scheduled at the current tick, without the start delay");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, tasks_handler.task_list[0].repeats, "The remaining repeats should be preserved when resuming an overdue task");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[0], "Task state should be updated to ENABLED");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, tasks_handler.scheduled_tasks.size, "The resumed task should be in the heap");
+}
+
+void test_tasks_enable_after_pause_of_overdue_task_fires_immediately_and_keeps_repeats(void) {
+    enum TasksReturnCode rc;
+
+    init_with_single_task(10U, 5U, 3U);
+
+    current_tick = 5U;
+    rc = tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should have fired once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, tasks_handler.task_list[TASK_1].repeats, "Repeat count should be 2 after one execution");
+
+    // The routine is not called for a long time, the task (next trigger at 15) is paused while overdue
+    current_tick = 50U;
+    rc = tasks_api_pause_task(&tasks_handler, TASK_1);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+
+    current_tick = 60U;
+    rc = tasks_api_enable_task(&tasks_handler, TASK_1);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(60U, tasks_handler.task_list[TASK_1].next_trigger, "The task should be due immediately, not delayed by the start time");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, tasks_handler.task_list[TASK_1].repeats, "Repeats must not be reset by resuming an overdue task");
+
+    rc = tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "The resumed task should fire immediately");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, tasks_handler.task_list[TASK_1].repeats, "Only one repeat should be consumed");
+}
+
+void test_tasks_enable_after_pause_exactly_at_trigger_time_fires_immediately(void) {
+    enum TasksReturnCode rc;
+
+    init_with_single_task(10U, 10U, 0U);
+
+    current_tick = 10U;
+    rc = tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should have fired once");
+
+    // Next trigger is 20 and the task is paused exactly at that tick: zero time remaining
+    current_tick = 20U;
+    tasks_api_pause_task(&tasks_handler, TASK_1);
+
+    current_tick = 35U;
+    rc = tasks_api_enable_task(&tasks_handler, TASK_1);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(35U, tasks_handler.task_list[TASK_1].next_trigger, "A task paused at its trigger time has no time remaining");
+
+    rc = tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "The resumed task should fire immediately");
+}
+
+void test_tasks_routine_after_long_stall_fires_overdue_task_only_once(void) {
+    enum TasksReturnCode rc;
+
+    init_with_single_task(10U, 0U, 0U);
+
+    current_tick = 0U;
+    rc = tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should have fired once at tick 0");
+
+    // 100 intervals are missed
+    current_tick = 1000U;
+    rc = tasks_api_routine(&tasks_handler);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "The missed executions should be skipped, not run in a burst");
+}
+
+void test_tasks_routine_after_long_stall_keeps_the_original_phase(void) {
+    enum TasksReturnCode rc;
+
+    init_with_single_task(10U, 0U, 0U);
+
+    current_tick = 0U;
+    tasks_api_routine(&tasks_handler);
+
+    current_tick = 1005U;
+    rc = tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task should have fired once for the whole stall");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(1010U, tasks_handler.task_list[TASK_1].next_trigger, "The next trigger should be the next multiple of the interval, not the current tick + interval");
+
+    current_tick = 1009U;
+    tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task should not fire before its next slot");
+
+    current_tick = 1010U;
+    tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, function_1_fake.call_count, "Task should fire at its next slot");
+}
+
+void test_tasks_routine_never_fires_a_task_twice_in_the_same_tick(void) {
+    enum TasksReturnCode rc;
+
+    init_with_single_task(10U, 0U, 0U);
+
+    current_tick = 0U;
+    tasks_api_routine(&tasks_handler);
+
+    // The execution due at 10 is late and the following one (20) is due exactly now: it must be skipped
+    current_tick = 20U;
+    rc = tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task should fire once in the tick");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(30U, tasks_handler.task_list[TASK_1].next_trigger, "The execution due in the current tick should be skipped");
+
+    rc = tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Calling the routine again in the same tick should not fire the task again");
+}
+
+void test_tasks_routine_on_time_does_not_drop_executions(void) {
+    init_with_single_task(10U, 0U, 0U);
+
+    for (uint32_t tick = 0U; tick <= 30U; tick += 10U) {
+        current_tick = tick;
+        TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, tasks_api_routine(&tasks_handler), "Expected OK return code");
+    }
+
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(4U, function_1_fake.call_count, "Task should have fired on every slot");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(0U, tasks_api_get_dropped_task_executions(&tasks_handler), "No execution should be dropped when the routine is called on time");
+}
+
+void test_tasks_routine_after_long_stall_counts_dropped_executions(void) {
+    init_with_single_task(10U, 0U, 0U);
+
+    current_tick = 0U;
+    tasks_api_routine(&tasks_handler);
+
+    // Executions due at 10, 20, ..., 1000: one is run, the other 99 are dropped
+    current_tick = 1005U;
+    tasks_api_routine(&tasks_handler);
+
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(99U, tasks_api_get_dropped_task_executions(&tasks_handler), "Dropped executions should be the missed ones minus the one that was run");
+}
+
+void test_tasks_routine_dropped_executions_accumulate_over_stalls(void) {
+    init_with_single_task(10U, 0U, 0U);
+
+    current_tick = 0U;
+    tasks_api_routine(&tasks_handler);
+
+    current_tick = 1005U;
+    tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(99U, tasks_api_get_dropped_task_executions(&tasks_handler), "First stall should drop 99 executions");
+
+    current_tick = 1010U;
+    tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(99U, tasks_api_get_dropped_task_executions(&tasks_handler), "An on-time execution should not change the counter");
+
+    // Executions due at 1020, ..., 2000: one is run, the other 98 are dropped
+    current_tick = 2005U;
+    tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(197U, tasks_api_get_dropped_task_executions(&tasks_handler), "The counter should accumulate over multiple stalls");
+}
+
+void test_tasks_routine_after_long_stall_handles_multiple_tasks_independently(void) {
+    TaskList local_tasks = {
+        { .task_id = TASK_1, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_1, .interval = 10U, .start = 0U },
+        { .task_id = TASK_2, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = function_2, .interval = 20U, .start = 0U },
+        { .task_id = TASK_3, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_3, .interval = 15U, .start = 10U },
+        { .task_id = TASK_4, .state = TASKS_STATE_DISABLED, .repeats = 0U, .function = function_4, .interval = 25U, .start = 0U }
+    };
+
+    current_tick = 0U;
+    tasks_api_init(&tasks_handler, local_tasks, TASK_COUNT, fake_get_tick);
+    tasks_api_routine(&tasks_handler);
+
+    current_tick = 100U;
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, tasks_api_routine(&tasks_handler), "Expected OK return code");
+
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task 1 should have fired once for the stall");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_2_fake.call_count, "Task 2 should have fired once for the stall");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(110U, tasks_handler.task_list[TASK_1].next_trigger, "Task 1 should stay on its own grid");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(120U, tasks_handler.task_list[TASK_2].next_trigger, "Task 2 should stay on its own grid");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(13U, tasks_api_get_dropped_task_executions(&tasks_handler), "Task 1 drops 9 and task 2 drops 4 executions");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, tasks_handler.scheduled_tasks.size, "Both tasks should still be scheduled");
+
+    current_tick = 110U;
+    tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, function_1_fake.call_count, "Only task 1 should fire at 110");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_2_fake.call_count, "Task 2 should not fire at 110");
+
+    current_tick = 120U;
+    tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(4U, function_1_fake.call_count, "Task 1 should fire at 120");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, function_2_fake.call_count, "Task 2 should fire at 120");
+}
+
+void test_tasks_routine_after_long_stall_consumes_a_single_repeat(void) {
+    init_with_single_task(10U, 0U, 5U);
+
+    current_tick = 0U;
+    tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(4U, tasks_handler.task_list[TASK_1].repeats, "Repeat count should be 4 after one execution");
+
+    current_tick = 1000U;
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, tasks_api_routine(&tasks_handler), "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task should have fired once for the stall");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, tasks_handler.task_list[TASK_1].repeats, "Dropped executions should not consume repeats");
+
+    current_tick = 1010U;
+    tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(3U, function_1_fake.call_count, "Task should keep running after the stall");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, tasks_handler.task_list[TASK_1].repeats, "Repeat count should be 2");
+}
+
+void test_tasks_routine_after_long_stall_expires_one_shot_task_without_dropping(void) {
+    init_with_single_task(10U, 5U, 1U);
+
+    current_tick = 1000U;
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, tasks_api_routine(&tasks_handler), "Expected OK return code");
+
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "One shot task should have fired once");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[TASK_1], "One shot task should be disabled after its execution");
+    TEST_ASSERT_TRUE_MESSAGE(min_heap_api_is_empty(&tasks_handler.scheduled_tasks), "An expired task should not be rescheduled");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(0U, tasks_api_get_dropped_task_executions(&tasks_handler), "An expired task has no executions to drop");
+}
+
+void test_tasks_routine_after_long_stall_with_interval_zero_terminates(void) {
+    init_with_single_task(0U, 0U, 0U);
+
+    current_tick = 0U;
+    tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, function_1_fake.call_count, "Task should have fired once at tick 0");
+
+    // An interval of 0 is treated as 1, so the skipping loop must advance anyway
+    current_tick = 50U;
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_OK, tasks_api_routine(&tasks_handler), "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(2U, function_1_fake.call_count, "Task should have fired once for the stall");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(51U, tasks_handler.task_list[TASK_1].next_trigger, "The next trigger should be the tick after the current one");
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(49U, tasks_api_get_dropped_task_executions(&tasks_handler), "Executions due at 2, ..., 50 should be dropped");
+}
+
+void test_tasks_get_dropped_task_executions_with_null_handler_returns_zero(void) {
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(0U, tasks_api_get_dropped_task_executions(NULL), "A NULL handler should report no dropped executions");
+}
+
+void test_tasks_get_dropped_task_executions_is_zero_after_init(void) {
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(0U, tasks_api_get_dropped_task_executions(&tasks_handler), "A freshly initialized handler should report no dropped executions");
+}
+
+void test_tasks_init_resets_dropped_task_executions(void) {
+    init_with_single_task(10U, 0U, 0U);
+
+    current_tick = 0U;
+    tasks_api_routine(&tasks_handler);
+    current_tick = 1005U;
+    tasks_api_routine(&tasks_handler);
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(99U, tasks_api_get_dropped_task_executions(&tasks_handler), "Executions should have been dropped");
+
+    init_with_single_task(10U, 0U, 0U);
+
+    TEST_ASSERT_EQUAL_UINT16_MESSAGE(0U, tasks_api_get_dropped_task_executions(&tasks_handler), "Re-initializing the handler should reset the counter");
+}
+
 void setUp(void) {
     memset(&tasks_handler, 0, sizeof(tasks_handler));
     current_tick = 0U;
@@ -1877,6 +2190,28 @@ int main(void) {
     RUN_TEST(test_tasks_routine_passes_task_id_after_reenable_from_disabled);
     RUN_TEST(test_tasks_routine_passes_task_id_after_update_task);
     RUN_TEST(test_tasks_routine_with_interval_set_to_zero_passes_task_id);
+
+    // OVERDUE TASK TESTS
+
+    RUN_TEST(test_tasks_handle_task_transition_resumes_overdue_paused_task_immediately_keeping_repeats);
+    RUN_TEST(test_tasks_enable_after_pause_of_overdue_task_fires_immediately_and_keeps_repeats);
+    RUN_TEST(test_tasks_enable_after_pause_exactly_at_trigger_time_fires_immediately);
+    RUN_TEST(test_tasks_routine_after_long_stall_fires_overdue_task_only_once);
+    RUN_TEST(test_tasks_routine_after_long_stall_keeps_the_original_phase);
+    RUN_TEST(test_tasks_routine_never_fires_a_task_twice_in_the_same_tick);
+    RUN_TEST(test_tasks_routine_on_time_does_not_drop_executions);
+    RUN_TEST(test_tasks_routine_after_long_stall_counts_dropped_executions);
+    RUN_TEST(test_tasks_routine_dropped_executions_accumulate_over_stalls);
+    RUN_TEST(test_tasks_routine_after_long_stall_handles_multiple_tasks_independently);
+    RUN_TEST(test_tasks_routine_after_long_stall_consumes_a_single_repeat);
+    RUN_TEST(test_tasks_routine_after_long_stall_expires_one_shot_task_without_dropping);
+    RUN_TEST(test_tasks_routine_after_long_stall_with_interval_zero_terminates);
+
+    // DROPPED EXECUTIONS COUNTER TESTS
+
+    RUN_TEST(test_tasks_get_dropped_task_executions_with_null_handler_returns_zero);
+    RUN_TEST(test_tasks_get_dropped_task_executions_is_zero_after_init);
+    RUN_TEST(test_tasks_init_resets_dropped_task_executions);
 
     return UNITY_END();
 }

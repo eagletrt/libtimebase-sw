@@ -81,6 +81,7 @@ struct TasksHandler {
     enum TaskState actual_state[MAX_TASKS];     /*!< The actual state of the tasks in the heap, this array reflects it directly*/
     struct MinHeapHandler scheduled_tasks;      /*!< The heap containing the scheduled tasks */
     struct ArenaAllocatorHandler arena_handler; /*!< The arena allocator handler used to manage the memory of the scheduled tasks */
+    uint16_t dropped_tasks;                     /*!< The number of tasks that were dropped because else they would have run multiple times in the same tick (long overdue tasks) */
 };
 
 /*!

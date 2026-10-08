@@ -100,8 +100,11 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
         // (task->next_trigger - task->last_update) is the remaining time to the next trigger when the task was paused, if the task was paused and there is still time to wait before the next trigger,
         // we can just add that remaining time to the current tick to get the new trigger time,
         // otherwise we can just calculate the trigger time from the start time of the task
-        if (from_state == TASKS_STATE_PAUSED && (int32_t)(task->next_trigger - task->last_update) >= 0) {
+        if (from_state == TASKS_STATE_PAUSED && ((int32_t)(task->next_trigger - task->last_update) >= 0)) {
             task->next_trigger = tick + (task->next_trigger - task->last_update);
+        } else if (from_state == TASKS_STATE_PAUSED) {
+            // If the task was paused and the next trigger time had already passed, we can just set the next trigger time to the current tick, so that it will be executed immediately
+            task->next_trigger = tick;
         } else {
             tasks_handler->task_list[task_id].repeats = tasks_handler->task_list[task_id].int_repeats;
             task->next_trigger = tick + task->start;
@@ -177,7 +180,10 @@ enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList
 
     tasks_handler->prev_tick = tasks_handler->get_tick();
 
-    prv_tasks_update_heap(tasks_handler, tasks_handler->get_tick());
+    if (prv_tasks_update_heap(tasks_handler, tasks_handler->get_tick()) != TASKS_RC_OK) {
+        memset(tasks_handler, 0, sizeof(*tasks_handler));
+        return TASKS_RC_ERROR;
+    }
 
     return TASKS_RC_OK;
 };
@@ -209,7 +215,9 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler) {
 
     for (;;) {
         if (next_task->next_trigger > current_tick) {
-            min_heap_api_insert(&tasks_handler->scheduled_tasks, &next_task);
+            if (min_heap_api_insert(&tasks_handler->scheduled_tasks, &next_task) != MIN_HEAP_RC_OK) {
+                return TASKS_RC_ERROR;
+            }
             break;
         }
 
@@ -224,6 +232,14 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler) {
 
             // Update the next trigger time
             next_task->next_trigger += EAGLETRT_API_MAX(next_task->interval, 1U);
+
+            // Protect against long overdue tasks that would have run multiple times in the same tick in burst
+            while (next_task->next_trigger <= current_tick) {
+                next_task->next_trigger += EAGLETRT_API_MAX(next_task->interval, 1U);
+                if (tasks_handler->dropped_tasks < UINT16_MAX) {
+                    ++tasks_handler->dropped_tasks;
+                }
+            }
 
             // Reinsert the task with the updated trigger time
             if (min_heap_api_insert(&tasks_handler->scheduled_tasks, &next_task) != MIN_HEAP_RC_OK) {
@@ -373,4 +389,11 @@ enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint
     *task = tasks_handler->task_list[task_id];
 
     return TASKS_RC_OK;
+}
+
+uint16_t tasks_api_get_dropped_task_executions(struct TasksHandler *tasks_handler) {
+    if (tasks_handler == NULL) {
+        return 0;
+    }
+    return tasks_handler->dropped_tasks;
 }

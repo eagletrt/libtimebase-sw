@@ -124,4 +124,13 @@ enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint
  */
 enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint16_t new_interval, uint16_t new_start, uint8_t repeats);
 
+/*!
+ * \brief Get the number of dropped task executions
+ *
+ * \param tasks_handler The pointer to the tasks handler structure, must not be NULL
+ *
+ * \returns The number of dropped task executions
+ */
+uint16_t tasks_api_get_dropped_task_executions(struct TasksHandler *tasks_handler);
+
 #endif // TASKS_API_H
