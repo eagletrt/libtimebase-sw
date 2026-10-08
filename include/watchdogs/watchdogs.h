@@ -52,6 +52,12 @@ enum WatchdogState {
 typedef void (*watchdog_timeout_callback)(void);
 
 /*!
+ * \brief Type definition for a function that is called every time the module
+ *        needs the tick.
+ */
+typedef uint32_t (*watchdog_tick_callback)(void);
+
+/*!
  * \brief Definiton of a single watchdog
  *
  * \param running True if the watchdog is running, false otherwise
@@ -71,11 +77,10 @@ struct Watchdog {
  * \brief Definition of the watchdog handler structure
  */
 struct WatchdogHandler {
+    watchdog_tick_callback get_tick;            /*!< The tick getter function */
     struct MinHeapHandler scheduled_watchdogs;  /*!< The heap containing the scheduled tasks */
     struct ArenaAllocatorHandler arena_handler; /*!< The arena allocator handler used to manage the memory of the scheduled tasks */
-
-    bool watchdog_module_enabled; /*!< True if the watchdog module is enabled, false otherwise */
-    uint32_t prev_tick;           /*!< The last tick at which the watchdogs were updated used for temporal continuity disabling the module*/
+    uint32_t prev_tick;                         /*!< The last tick at which the watchdogs were updated used for temporal continuity disabling the module*/
 };
 
 #endif // WATCHDOGS_H

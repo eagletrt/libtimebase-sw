@@ -22,7 +22,7 @@ Tasks and watchdogs do **not** depend on the timebase module: they only need a m
 
 ### Common conventions
 
- - Every function that depends on time takes a `current_tick` parameter. It is up to the user to provide it, the library never reads a clock by itself.
+ - **Where the tick comes from**: the library never reads a clock by itself. The **watchdogs** module takes a tick getter function (`uint32_t get_tick(void)`) at initialization and calls it whenever it needs the time, so no function of the module takes a tick parameter. The **tasks** module still takes a `current_tick` parameter in every function that depends on time.
  - **Temporal discontinuity**: if the given tick is lower than the last tick the module has seen, the function returns `*_RC_TEMPORAL_DISCONTINUITY` and does nothing. Time can only move forward.
  - Every function checks its pointers and returns `*_RC_NULL_POINTER` if one of them is `NULL`.
  - Callbacks (tasks functions and watchdog timeouts) are executed **inside the routine of their module**, never from an interrupt.
@@ -46,6 +46,11 @@ static void led_toggle(void);
 static void log_status(void);
 static void can_timeout(void);
 
+// Tick getter of the watchdogs module, any monotonic tick source works
+static uint32_t get_tick(void) {
+    return timebase_get_tick(&timebase);
+}
+
 static TaskList task_list = {
     { .task_id = TASK_LED, .state = TASKS_STATE_ENABLED, .repeats = 0U, .function = led_toggle, .interval = 500U, .start = 0U },
     { .task_id = TASK_LOG, .state = TASKS_STATE_ENABLED, .repeats = 3U, .function = log_status, .interval = 1000U, .start = 100U },
@@ -62,14 +67,14 @@ int main(void) {
 
     tasks_api_init(&tasks, task_list, TASK_COUNT, timebase_get_tick(&timebase));
 
-    watchdogs_api_init_pool(&watchdogs, timebase_get_tick(&timebase));
+    watchdogs_api_init_pool(&watchdogs, get_tick);
     watchdogs_api_init_watchdog(&can_watchdog, 200U, can_timeout);
-    watchdogs_api_watchdog_start(&watchdogs, &can_watchdog, timebase_get_tick(&timebase));
+    watchdogs_api_watchdog_start(&watchdogs, &can_watchdog);
 
     for (;;) {
         uint32_t now = timebase_get_tick(&timebase);
         tasks_api_routine(&tasks, now);
-        watchdogs_api_routine(&watchdogs, now);
+        watchdogs_api_routine(&watchdogs);
     }
 }
 ```
@@ -163,15 +168,15 @@ The `current_tick` passed to these calls must not be lower than the last tick th
 This module implements generic software watchdogs. A watchdog has a timeout in ticks and a callback: if the watchdog is not "petted" before the timeout expires, the callback is executed by the routine. Running watchdogs are kept in a min-heap ordered by expiration time.
 
 #### Usage
- - `watchdogs_api_init_pool(handler, current_tick)`: initializes the watchdog handler that contains all the scheduled watchdogs. The handler must be allocated by the user. At most `MAX_WATCHDOGS` (defined in `watchdogs.h`, 20 by default) can run at the same time.
+ - `watchdogs_api_init_pool(handler, get_tick)`: initializes the watchdog handler that contains all the scheduled watchdogs. `get_tick` is the function the module calls whenever it needs the current tick, it has the signature `uint32_t get_tick(void)` and must not be `NULL` (`WATCHDOG_RC_NULL_POINTER` otherwise). The handler must be allocated by the user. At most `MAX_WATCHDOGS` (defined in `watchdogs.h`, 20 by default) can run at the same time.
  - `watchdogs_api_init_watchdog(watchdog, timeout, callback)`: initializes a single watchdog. `timeout` is in ticks and must be greater than 0, `callback` has the signature `void callback(void)` and must not be `NULL`. The `struct Watchdog` must be **zero-initialized** before the call (`struct Watchdog wd = { 0 };` or a static variable), and a watchdog can be initialized only once.
- - `watchdogs_api_watchdog_start(handler, watchdog, current_tick)`: starts the watchdog, it will expire at `current_tick + timeout`.
+ - `watchdogs_api_watchdog_start(handler, watchdog)`: starts the watchdog, it will expire at `tick + timeout`, where `tick` is the value returned by the tick getter.
  - `watchdogs_api_watchdog_stop(handler, watchdog)`: stops a running watchdog without firing the callback.
- - `watchdogs_api_watchdog_pet(handler, watchdog, current_tick)`: replenishes a running watchdog, the new expiration is `current_tick + timeout`. This is the function to call periodically from the code that is being supervised.
- - `watchdogs_api_watchdog_restart(handler, watchdog, current_tick)`: starts the watchdog no matter its state, a timed-out watchdog included. To bring a timed-out watchdog back to the not running state without starting it use `reset`.
- - `watchdogs_api_watchdog_reset(handler, watchdog, current_tick)`: resets the watchdog to its initial state no matter its state. A running watchdog is removed from the heap without firing the callback, a timed-out one is cleared, and in every case the watchdog ends up `NOT_RUNNING` and can be started again with `start`. Resetting a watchdog that is already not running is not an error.
+ - `watchdogs_api_watchdog_pet(handler, watchdog)`: replenishes a running watchdog, the new expiration is `tick + timeout`. This is the function to call periodically from the code that is being supervised.
+ - `watchdogs_api_watchdog_restart(handler, watchdog)`: starts the watchdog no matter its state, a timed-out watchdog included. To bring a timed-out watchdog back to the not running state without starting it use `reset`.
+ - `watchdogs_api_watchdog_reset(handler, watchdog)`: resets the watchdog to its initial state no matter its state. A running watchdog is removed from the heap without firing the callback, a timed-out one is cleared, and in every case the watchdog ends up `NOT_RUNNING` and can be started again with `start`. Resetting a watchdog that is already not running is not an error.
  - `watchdogs_api_watchdog_is_running(watchdog)` / `watchdogs_api_watchdog_is_timed_out(watchdog)`: state getters, they return `false` for a `NULL` watchdog.
- - `watchdogs_api_routine(handler, current_tick)`: to be called periodically, it checks which watchdogs have expired and executes their callbacks.
+ - `watchdogs_api_routine(handler)`: to be called periodically, it checks which watchdogs have expired and executes their callbacks.
 
 The `struct Watchdog` is owned by the user and must stay valid (and at the same address) for as long as it is running, since the handler stores a pointer to it.
 
@@ -186,9 +191,16 @@ A watchdog can be in one of three states:
 
 `start` on a running watchdog returns `WATCHDOG_RC_BUSY`. `start`, `stop` and `pet` on a timed-out watchdog return `WATCHDOG_RC_TIMED_OUT`. `stop` and `pet` on a watchdog that is not running return `WATCHDOG_RC_NOT_RUNNING`. `reset` never fails because of the state of the watchdog. Any operation on a watchdog that was never initialized returns `WATCHDOG_RC_UNINITIALIZED`.
 
-When the routine finds an expired watchdog (`next_trigger <= current_tick`) it sets its state to `TIMED_OUT`, removes it from the heap and then calls its callback, so a callback can safely call `watchdogs_api_watchdog_restart` on its own watchdog to re-arm it.
+When the routine finds an expired watchdog (`next_trigger <= current_tick`) it sets its state to `TIMED_OUT`, removes it from the heap and then calls its callback, so a callback can safely call `watchdogs_api_watchdog_restart` (or `reset` followed by `start`) on its own watchdog to re-arm it. Calling only `start` from the callback fails with `WATCHDOG_RC_TIMED_OUT`, because the watchdog is already timed out at that point.
 
-Unlike the tasks module, the watchdogs module records the last tick only inside `watchdogs_api_routine`: `start`, `stop`, `pet`, `reset` and `restart` compare the given tick with the tick of the last routine call but do not update it.
+#### Tick getter
+The tick getter is stored in the handler and called by the module itself, which makes it possible to use watchdogs from code that has no access to the current tick (and no reason to). A few rules:
+
+ - The getter is called **once per API call**. In particular `watchdogs_api_routine` reads the tick a single time, so all the watchdogs that expire in the same call are compared against the same instant, no matter how long their callbacks take. A callback that calls the API (for example `restart` on its own watchdog) causes a new read, so the watchdog is re-armed from the time of that call.
+ - The getter must be monotonic and fast, it is called from the same context as the module functions.
+ - If the tick is updated by an interrupt and a `uint32_t` cannot be read atomically on the target (8 and 16 bit MCUs), the getter must protect the read, for example by disabling interrupts. The module does not do it.
+ - `timebase_get_tick` takes a pointer to the timebase, so it cannot be used directly as a getter. Write a small wrapper, as in the setup example above.
+ - Unlike the tasks module, the watchdogs module records the last tick only inside `watchdogs_api_routine`. `start`, `pet`, `reset` and `restart` compare the tick returned by the getter with the tick of the last routine call, and return `WATCHDOG_RC_TEMPORAL_DISCONTINUITY` if it is lower (for example if the timebase was re-initialized), but they do not update it.
 
 #### Return codes
 `WATCHDOG_RC_OK`, `WATCHDOG_RC_NULL_POINTER`, `WATCHDOG_RC_TIMED_OUT`, `WATCHDOG_RC_TEMPORAL_DISCONTINUITY`, `WATCHDOG_RC_ERROR`, `WATCHDOG_RC_BUSY`, `WATCHDOG_RC_NOT_RUNNING`, `WATCHDOG_RC_UNINITIALIZED`.

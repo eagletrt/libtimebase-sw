@@ -15,6 +15,17 @@
 #include "watchdogs-api.h"
 #include <inttypes.h>
 
+/*
+ * The watchdogs module reads the time by itself through this function, so the watchdog functions
+ * do not need a tick parameter. Here the "clock" is a variable that the example moves by hand,
+ * on a real target the function would return the timebase, HAL or RTOS tick.
+ */
+static uint32_t current_tick;
+
+static uint32_t get_tick(void) {
+    return current_tick;
+}
+
 void print_watchdog_1(void) {
     printf("Watchdog_1 executed");
     return;
@@ -38,10 +49,11 @@ int main(void) {
 
     struct WatchdogHandler watchdogs_handler;
 
-    watchdogs_api_init_pool(&watchdogs_handler, 0U);
-    struct Watchdog watchdog_1;
-    struct Watchdog watchdog_2;
-    struct Watchdog watchdog_3;
+    current_tick = 0U;
+    watchdogs_api_init_pool(&watchdogs_handler, get_tick);
+    struct Watchdog watchdog_1 = { 0 }; // must be zero-initialized
+    struct Watchdog watchdog_2 = { 0 };
+    struct Watchdog watchdog_3 = { 0 };
 
     watchdogs_api_init_watchdog(&watchdog_1, 5U, print_watchdog_1);
     watchdogs_api_init_watchdog(&watchdog_2, 7U, print_watchdog_2);
@@ -58,14 +70,16 @@ int main(void) {
 
     for (uint32_t i = 0; i <= 25; i++) {
 
+        current_tick = i;
+
         if (i == 5) {
-            watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, i);
-            watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_2, i);
-            watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_3, i);
+            watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1);
+            watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_2);
+            watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_3);
         }
 
         printf("Tick: %" PRId32 "  -> ", i);
-        watchdogs_api_routine(&watchdogs_handler, i);
+        watchdogs_api_routine(&watchdogs_handler);
 
         printf("\n");
     }
@@ -78,16 +92,18 @@ int main(void) {
 
     for (uint32_t i = 26; i <= 60; i++) {
 
+        current_tick = i;
+
         if (i == 30) {
-            watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_2, i);
-            watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_3, i);
+            watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_2);
+            watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_3);
         }
         if (i == 36) {
-            watchdogs_api_watchdog_pet(&watchdogs_handler, &watchdog_2, i);
+            watchdogs_api_watchdog_pet(&watchdogs_handler, &watchdog_2);
         }
 
         printf("Tick: %" PRId32 "  -> ", i);
-        watchdogs_api_routine(&watchdogs_handler, i);
+        watchdogs_api_routine(&watchdogs_handler);
 
         printf("\n");
     }
@@ -96,14 +112,17 @@ int main(void) {
      * Restart all watchdogs at tick 60 they should fire at tick 65, 67 and 70 respectively.
      */
 
-    watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_1, 60U);
-    watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_2, 60U);
-    watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_3, 60U);
+    current_tick = 60U;
+    watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_1);
+    watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_2);
+    watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_3);
 
     for (uint32_t i = 61; i <= 100; i++) {
 
+        current_tick = i;
+
         printf("Tick: %" PRId32 "  -> ", i);
-        watchdogs_api_routine(&watchdogs_handler, i);
+        watchdogs_api_routine(&watchdogs_handler);
 
         printf("\n");
     }
@@ -117,14 +136,17 @@ int main(void) {
      * At tick 100 all watchdogs are restarted, watchdog 1 should fire at tick 105, watchdog 2 at tick 107 and watchdog 3 at tick 110
      */
 
-    watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_1, 100U);
-    watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_2, 100U);
-    watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_3, 100U);
+    current_tick = 100U;
+    watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_1);
+    watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_2);
+    watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_3);
 
     for (uint32_t i = 100; i <= 130;) {
 
+        current_tick = i;
+
         printf("Tick: %" PRIu32 "  -> ", i);
-        watchdogs_api_routine(&watchdogs_handler, i);
+        watchdogs_api_routine(&watchdogs_handler);
 
         printf("\n");
 
