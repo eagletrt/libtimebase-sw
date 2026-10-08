@@ -100,6 +100,26 @@ enum WatchdogReturnCode watchdogs_api_watchdog_stop(struct WatchdogHandler *watc
 enum WatchdogReturnCode watchdogs_api_watchdog_restart(struct WatchdogHandler *watchdogs_handler, struct Watchdog *watchdog, uint32_t current_tick);
 
 /*!
+ * \brief Resets a watchdog to its initial state no matter its state
+ *
+ * \details A running watchdog is removed from the scheduled watchdogs without executing its callback.
+ * A timed out or stopped watchdog is only moved back to the not running state. In every case the state
+ * becomes WATCHDOG_STATE_NOT_RUNNING, so the watchdog can be started again with watchdogs_api_watchdog_start.
+ * Resetting a watchdog that is already not running is not an error
+ *
+ * \param watchdogs_handler A pointer to the watchdog handler structure
+ * \param watchdog A pointer to the watchdog
+ * \param current_tick The current tick
+ *
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog handler or the watchdog is NULL
+ * \retval WATCHDOG_RC_UNINITIALIZED The watchdog is not initialized
+ * \retval WATCHDOG_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
+ * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
+ * \retval WATCHDOG_RC_OK Otherwise
+ */
+enum WatchdogReturnCode watchdogs_api_watchdog_reset(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick);
+
+/*!
  * \brief Replenishes the watchdog internal time
  *
  * \param watchdogs_handler A pointer to the watchdog handler structure

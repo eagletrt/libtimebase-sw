@@ -168,7 +168,8 @@ This module implements generic software watchdogs. A watchdog has a timeout in t
  - `watchdogs_api_watchdog_start(handler, watchdog, current_tick)`: starts the watchdog, it will expire at `current_tick + timeout`.
  - `watchdogs_api_watchdog_stop(handler, watchdog)`: stops a running watchdog without firing the callback.
  - `watchdogs_api_watchdog_pet(handler, watchdog, current_tick)`: replenishes a running watchdog, the new expiration is `current_tick + timeout`. This is the function to call periodically from the code that is being supervised.
- - `watchdogs_api_watchdog_restart(handler, watchdog, current_tick)`: starts the watchdog no matter its state. It is the only way to bring a timed-out watchdog back to life.
+ - `watchdogs_api_watchdog_restart(handler, watchdog, current_tick)`: starts the watchdog no matter its state, a timed-out watchdog included. To bring a timed-out watchdog back to the not running state without starting it use `reset`.
+ - `watchdogs_api_watchdog_reset(handler, watchdog, current_tick)`: resets the watchdog to its initial state no matter its state. A running watchdog is removed from the heap without firing the callback, a timed-out one is cleared, and in every case the watchdog ends up `NOT_RUNNING` and can be started again with `start`. Resetting a watchdog that is already not running is not an error.
  - `watchdogs_api_watchdog_is_running(watchdog)` / `watchdogs_api_watchdog_is_timed_out(watchdog)`: state getters, they return `false` for a `NULL` watchdog.
  - `watchdogs_api_routine(handler, current_tick)`: to be called periodically, it checks which watchdogs have expired and executes their callbacks.
 
@@ -179,15 +180,15 @@ A watchdog can be in one of three states:
 
 | State | Meaning | Allowed operations |
 |-------|---------|--------------------|
-| `WATCHDOG_STATE_NOT_RUNNING` | Initialized (or stopped), not scheduled | `start`, `restart` |
-| `WATCHDOG_STATE_RUNNING` | Scheduled in the heap | `stop`, `pet`, `restart` |
-| `WATCHDOG_STATE_TIMED_OUT` | Expired, callback has been called, no longer scheduled | `restart` only |
+| `WATCHDOG_STATE_NOT_RUNNING` | Initialized (stopped or reset), not scheduled | `start`, `reset`, `restart` |
+| `WATCHDOG_STATE_RUNNING` | Scheduled in the heap | `stop`, `pet`, `reset`, `restart` |
+| `WATCHDOG_STATE_TIMED_OUT` | Expired, callback has been called, no longer scheduled | `reset`, `restart` |
 
-`start` on a running watchdog returns `WATCHDOG_RC_BUSY`. `start`, `stop` and `pet` on a timed-out watchdog return `WATCHDOG_RC_TIMED_OUT`. `stop` and `pet` on a watchdog that is not running return `WATCHDOG_RC_NOT_RUNNING`. Any operation on a watchdog that was never initialized returns `WATCHDOG_RC_UNINITIALIZED`.
+`start` on a running watchdog returns `WATCHDOG_RC_BUSY`. `start`, `stop` and `pet` on a timed-out watchdog return `WATCHDOG_RC_TIMED_OUT`. `stop` and `pet` on a watchdog that is not running return `WATCHDOG_RC_NOT_RUNNING`. `reset` never fails because of the state of the watchdog. Any operation on a watchdog that was never initialized returns `WATCHDOG_RC_UNINITIALIZED`.
 
 When the routine finds an expired watchdog (`next_trigger <= current_tick`) it sets its state to `TIMED_OUT`, removes it from the heap and then calls its callback, so a callback can safely call `watchdogs_api_watchdog_restart` on its own watchdog to re-arm it.
 
-Unlike the tasks module, the watchdogs module records the last tick only inside `watchdogs_api_routine`: `start`, `stop`, `pet` and `restart` compare the given tick with the tick of the last routine call but do not update it.
+Unlike the tasks module, the watchdogs module records the last tick only inside `watchdogs_api_routine`: `start`, `stop`, `pet`, `reset` and `restart` compare the given tick with the tick of the last routine call but do not update it.
 
 #### Return codes
 `WATCHDOG_RC_OK`, `WATCHDOG_RC_NULL_POINTER`, `WATCHDOG_RC_TIMED_OUT`, `WATCHDOG_RC_TEMPORAL_DISCONTINUITY`, `WATCHDOG_RC_ERROR`, `WATCHDOG_RC_BUSY`, `WATCHDOG_RC_NOT_RUNNING`, `WATCHDOG_RC_UNINITIALIZED`.

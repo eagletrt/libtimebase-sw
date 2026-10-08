@@ -260,6 +260,129 @@ void test_watchdogs_restart_timed_out_watchdog_restarts_it(void) {
     TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_RUNNING, watchdog_1.watchdog_state, "State should be RUNNING after restart");
 }
 
+void test_watchdogs_reset_with_null_handler_returns_error(void) {
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_reset(NULL, &watchdog_1, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
+void test_watchdogs_reset_with_null_watchdog_returns_error(void) {
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_reset(&watchdogs_handler, NULL, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
+void test_watchdogs_reset_uninitialized_watchdog_returns_error(void) {
+    struct Watchdog wd = { 0 };
+
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_reset(&watchdogs_handler, &wd, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_UNINITIALIZED, rc, "Expected UNINITIALIZED return code");
+}
+
+void test_watchdogs_reset_with_past_tick_returns_temporal_discontinuity(void) {
+    watchdogs_handler.prev_tick = 10U;
+    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 10U);
+
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_reset(&watchdogs_handler, &watchdog_1, 5U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_TEMPORAL_DISCONTINUITY, rc, "Expected TEMPORAL_DISCONTINUITY return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_RUNNING, watchdog_1.watchdog_state, "State should be untouched");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(1U, watchdogs_handler.scheduled_watchdogs.size, "Watchdog should still be scheduled");
+}
+
+void test_watchdogs_reset_not_running_watchdog_returns_ok(void) {
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_reset(&watchdogs_handler, &watchdog_1, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_NOT_RUNNING, watchdog_1.watchdog_state, "State should stay NOT_RUNNING");
+    TEST_ASSERT_TRUE_MESSAGE(min_heap_api_is_empty(&watchdogs_handler.scheduled_watchdogs), "Heap should stay empty");
+}
+
+void test_watchdogs_reset_timed_out_watchdog_returns_ok_and_sets_state(void) {
+    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
+    watchdogs_api_routine(&watchdogs_handler, watchdog_1.timeout);
+
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_reset(&watchdogs_handler, &watchdog_1, watchdog_1.timeout);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_NOT_RUNNING, watchdog_1.watchdog_state, "State should be NOT_RUNNING");
+    TEST_ASSERT_FALSE_MESSAGE(watchdogs_api_watchdog_is_timed_out(&watchdog_1), "Watchdog should not be timed out anymore");
+}
+
+void test_watchdogs_reset_timed_out_watchdog_can_be_started_again(void) {
+    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
+    watchdogs_api_routine(&watchdogs_handler, watchdog_1.timeout);
+    watchdogs_api_watchdog_reset(&watchdogs_handler, &watchdog_1, watchdog_1.timeout);
+
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 150U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_RUNNING, watchdog_1.watchdog_state, "State should be RUNNING");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(150U + watchdog_1.timeout, watchdog_1.next_trigger, "next_trigger should be current_tick + timeout");
+}
+
+void test_watchdogs_reset_running_watchdog_returns_ok_and_sets_state(void) {
+    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
+
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_reset(&watchdogs_handler, &watchdog_1, 5U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_NOT_RUNNING, watchdog_1.watchdog_state, "State should be NOT_RUNNING");
+    TEST_ASSERT_FALSE_MESSAGE(watchdogs_api_watchdog_is_running(&watchdog_1), "Watchdog should not be running");
+}
+
+void test_watchdogs_reset_running_watchdog_removes_from_heap(void) {
+    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
+
+    watchdogs_api_watchdog_reset(&watchdogs_handler, &watchdog_1, 5U);
+
+    TEST_ASSERT_TRUE_MESSAGE(min_heap_api_is_empty(&watchdogs_handler.scheduled_watchdogs), "Heap should be empty after reset");
+}
+
+void test_watchdogs_reset_running_watchdog_does_not_fire_callback(void) {
+    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
+    watchdogs_api_watchdog_reset(&watchdogs_handler, &watchdog_1, 5U);
+
+    watchdogs_api_routine(&watchdogs_handler, watchdog_1.timeout);
+
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, watchdog_callback_1_fake.call_count, "Callback should not be called after reset");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_NOT_RUNNING, watchdog_1.watchdog_state, "State should stay NOT_RUNNING");
+}
+
+void test_watchdogs_reset_twice_returns_ok(void) {
+    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
+    watchdogs_api_watchdog_reset(&watchdogs_handler, &watchdog_1, 5U);
+
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_reset(&watchdogs_handler, &watchdog_1, 6U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_OK, rc, "Expected OK return code on second reset");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_NOT_RUNNING, watchdog_1.watchdog_state, "State should be NOT_RUNNING");
+}
+
+void test_watchdogs_reset_watchdog_can_be_started_again(void) {
+    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
+    watchdogs_api_watchdog_reset(&watchdogs_handler, &watchdog_1, 5U);
+
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 10U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_OK, rc, "Expected OK return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_RUNNING, watchdog_1.watchdog_state, "State should be RUNNING");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(10U + watchdog_1.timeout, watchdog_1.next_trigger, "next_trigger should be current_tick + timeout");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(1U, watchdogs_handler.scheduled_watchdogs.size, "Heap should contain 1 watchdog");
+}
+
+void test_watchdogs_reset_keeps_other_watchdogs_scheduled(void) {
+    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1, 0U);
+    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_2, 0U);
+
+    watchdogs_api_watchdog_reset(&watchdogs_handler, &watchdog_1, 5U);
+    watchdogs_api_routine(&watchdogs_handler, watchdog_2.timeout);
+
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(0U, watchdog_callback_1_fake.call_count, "Callback 1 should not be called");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(1U, watchdog_callback_2_fake.call_count, "Callback 2 should be called");
+}
+
 void test_watchdogs_pet_with_null_handler_returns_error(void) {
     enum WatchdogReturnCode rc = watchdogs_api_watchdog_pet(NULL, &watchdog_1, 0U);
 
@@ -495,6 +618,21 @@ int main(void) {
     RUN_TEST(test_watchdogs_restart_not_running_watchdog_starts_it);
     RUN_TEST(test_watchdogs_restart_running_watchdog_resets_timer);
     RUN_TEST(test_watchdogs_restart_timed_out_watchdog_restarts_it);
+
+    // RESET TESTS
+    RUN_TEST(test_watchdogs_reset_with_null_handler_returns_error);
+    RUN_TEST(test_watchdogs_reset_with_null_watchdog_returns_error);
+    RUN_TEST(test_watchdogs_reset_uninitialized_watchdog_returns_error);
+    RUN_TEST(test_watchdogs_reset_with_past_tick_returns_temporal_discontinuity);
+    RUN_TEST(test_watchdogs_reset_not_running_watchdog_returns_ok);
+    RUN_TEST(test_watchdogs_reset_timed_out_watchdog_returns_ok_and_sets_state);
+    RUN_TEST(test_watchdogs_reset_timed_out_watchdog_can_be_started_again);
+    RUN_TEST(test_watchdogs_reset_running_watchdog_returns_ok_and_sets_state);
+    RUN_TEST(test_watchdogs_reset_running_watchdog_removes_from_heap);
+    RUN_TEST(test_watchdogs_reset_running_watchdog_does_not_fire_callback);
+    RUN_TEST(test_watchdogs_reset_twice_returns_ok);
+    RUN_TEST(test_watchdogs_reset_watchdog_can_be_started_again);
+    RUN_TEST(test_watchdogs_reset_keeps_other_watchdogs_scheduled);
 
     // PET TESTS
     RUN_TEST(test_watchdogs_pet_with_null_handler_returns_error);
