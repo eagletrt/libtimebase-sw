@@ -741,6 +741,52 @@ void test_watchdogs_routine_callback_can_reset_and_start_its_own_watchdog(void) 
     TEST_ASSERT_EQUAL_UINT32_MESSAGE(1U, watchdogs_handler.scheduled_watchdogs.size, "Watchdog should be in the heap exactly once");
 }
 
+
+void test_watchdogs_start_with_null_tick_callback_returns_error(void) {
+    watchdogs_handler.get_tick = NULL;
+
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_NOT_RUNNING, watchdog_1.watchdog_state, "State should be unchanged");
+    TEST_ASSERT_TRUE_MESSAGE(min_heap_api_is_empty(&watchdogs_handler.scheduled_watchdogs), "Heap should be untouched");
+}
+
+void test_watchdogs_restart_with_null_tick_callback_returns_error(void) {
+    watchdogs_handler.get_tick = NULL;
+
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_restart(&watchdogs_handler, &watchdog_1);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_NOT_RUNNING, watchdog_1.watchdog_state, "State should be unchanged");
+    TEST_ASSERT_TRUE_MESSAGE(min_heap_api_is_empty(&watchdogs_handler.scheduled_watchdogs), "Heap should be untouched");
+}
+
+void test_watchdogs_pet_with_null_tick_callback_returns_error(void) {
+    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1);
+    uint32_t next_trigger = watchdog_1.next_trigger;
+    watchdogs_handler.get_tick = NULL;
+
+    current_tick = 10U;
+    enum WatchdogReturnCode rc = watchdogs_api_watchdog_pet(&watchdogs_handler, &watchdog_1);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(next_trigger, watchdog_1.next_trigger, "next_trigger should be unchanged");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_RUNNING, watchdog_1.watchdog_state, "Watchdog should still be running");
+}
+
+void test_watchdogs_routine_with_null_tick_callback_returns_error(void) {
+    watchdogs_api_watchdog_start(&watchdogs_handler, &watchdog_1);
+    watchdogs_handler.get_tick = NULL;
+
+    current_tick = 100U;
+    enum WatchdogReturnCode rc = watchdogs_api_routine(&watchdogs_handler);
+
+    TEST_ASSERT_EQUAL_MESSAGE(WATCHDOG_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(0U, watchdog_callback_1_fake.call_count, "No callback should fire without a tick source");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(WATCHDOG_STATE_RUNNING, watchdog_1.watchdog_state, "Watchdog should still be running");
+}
+
 void setUp(void) {
     memset(&watchdogs_handler, 0, sizeof(watchdogs_handler));
     memset(&watchdog_1, 0, sizeof(watchdog_1));
@@ -854,6 +900,12 @@ int main(void) {
     RUN_TEST(test_watchdogs_routine_callback_can_restart_its_own_watchdog);
     RUN_TEST(test_watchdogs_routine_callback_start_of_its_own_timed_out_watchdog_fails);
     RUN_TEST(test_watchdogs_routine_callback_can_reset_and_start_its_own_watchdog);
+
+    // NULL TICK CALLBACK TESTS
+    RUN_TEST(test_watchdogs_start_with_null_tick_callback_returns_error);
+    RUN_TEST(test_watchdogs_restart_with_null_tick_callback_returns_error);
+    RUN_TEST(test_watchdogs_pet_with_null_tick_callback_returns_error);
+    RUN_TEST(test_watchdogs_routine_with_null_tick_callback_returns_error);
 
     // GENERAL TESTS
     RUN_TEST(test_watchdogs_stop_with_shared_callback_and_same_deadline_removes_correct_watchdog);

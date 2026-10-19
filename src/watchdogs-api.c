@@ -231,7 +231,7 @@ enum WatchdogReturnCode watchdogs_api_watchdog_stop(struct WatchdogHandler *cons
 
 enum WatchdogReturnCode watchdogs_api_watchdog_restart(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog) {
 
-    if (watchdogs_handler == NULL || watchdog == NULL) {
+    if (watchdogs_handler == NULL || watchdog == NULL || watchdogs_handler->get_tick == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
     }
     if (watchdog->is_initialized == false) {

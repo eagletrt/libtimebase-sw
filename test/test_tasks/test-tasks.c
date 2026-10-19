@@ -2062,6 +2062,49 @@ void test_tasks_init_resets_dropped_task_executions(void) {
     TEST_ASSERT_EQUAL_UINT16_MESSAGE(0U, tasks_api_get_dropped_task_executions(&tasks_handler), "Re-initializing the handler should reset the counter");
 }
 
+void test_tasks_routine_with_null_tick_callback_returns_error(void) {
+    tasks_handler.get_tick = NULL;
+
+    enum TasksReturnCode rc = tasks_api_routine(&tasks_handler);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
+void test_tasks_enable_with_null_tick_callback_returns_error(void) {
+    tasks_handler.get_tick = NULL;
+
+    enum TasksReturnCode rc = tasks_api_enable_task(&tasks_handler, TASK_2);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_DISABLED, tasks_handler.actual_state[TASK_2], "Task state should be unchanged");
+}
+
+void test_tasks_pause_with_null_tick_callback_returns_error(void) {
+    tasks_handler.get_tick = NULL;
+
+    enum TasksReturnCode rc = tasks_api_pause_task(&tasks_handler, TASK_1);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[TASK_1], "Task state should be unchanged");
+}
+
+void test_tasks_disable_with_null_tick_callback_returns_error(void) {
+    tasks_handler.get_tick = NULL;
+
+    enum TasksReturnCode rc = tasks_api_disable_task(&tasks_handler, TASK_1);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+    TEST_ASSERT_EQUAL_UINT8_MESSAGE(TASKS_STATE_ENABLED, tasks_handler.actual_state[TASK_1], "Task state should be unchanged");
+}
+
+void test_tasks_update_task_with_null_tick_callback_returns_error(void) {
+    tasks_handler.get_tick = NULL;
+
+    enum TasksReturnCode rc = tasks_api_update_task(&tasks_handler, TASK_1, 10U, 0U, 0U);
+
+    TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_NULL_POINTER, rc, "Expected NULL_POINTER return code");
+}
+
 void setUp(void) {
     memset(&tasks_handler, 0, sizeof(tasks_handler));
     current_tick = 0U;
@@ -2212,6 +2255,13 @@ int main(void) {
     RUN_TEST(test_tasks_get_dropped_task_executions_with_null_handler_returns_zero);
     RUN_TEST(test_tasks_get_dropped_task_executions_is_zero_after_init);
     RUN_TEST(test_tasks_init_resets_dropped_task_executions);
+
+    // NULL TICK CALLBACK TESTS
+    RUN_TEST(test_tasks_routine_with_null_tick_callback_returns_error);
+    RUN_TEST(test_tasks_enable_with_null_tick_callback_returns_error);
+    RUN_TEST(test_tasks_pause_with_null_tick_callback_returns_error);
+    RUN_TEST(test_tasks_disable_with_null_tick_callback_returns_error);
+    RUN_TEST(test_tasks_update_task_with_null_tick_callback_returns_error);
 
     return UNITY_END();
 }
