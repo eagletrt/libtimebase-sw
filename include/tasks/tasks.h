@@ -21,8 +21,9 @@
 /*!
  * \brief The max number of tasks that can be initialized
  */
+#ifndef MAX_TASKS
 #define MAX_TASKS (20U)
-
+#endif
 /*! 
  * \brief The callback signature of a task
  * \details The callback is executed by the routine and can call the tasks API, also on its own task
