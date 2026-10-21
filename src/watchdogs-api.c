@@ -319,6 +319,25 @@ enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *const
     return WATCHDOG_RC_OK;
 }
 
+enum WatchdogReturnCode watchdogs_api_watchdog_feed(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog) {
+
+    if (watchdogs_handler == NULL || watchdog == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
+    }
+    if (watchdog->is_initialized == false) {
+        return WATCHDOG_RC_UNINITIALIZED;
+    }
+
+    switch (watchdog->watchdog_state) {
+    case WATCHDOG_STATE_RUNNING:
+        return watchdogs_api_watchdog_pet(watchdogs_handler, watchdog);
+    case WATCHDOG_STATE_TIMED_OUT:
+        return watchdogs_api_watchdog_restart(watchdogs_handler, watchdog);
+    default:
+        return WATCHDOG_RC_NOT_RUNNING;
+    }
+}
+
 bool watchdogs_api_watchdog_is_running(struct Watchdog *const watchdog) {
     if (watchdog == NULL) {
         return false;

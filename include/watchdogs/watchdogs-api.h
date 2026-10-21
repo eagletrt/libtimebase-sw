@@ -139,6 +139,22 @@ enum WatchdogReturnCode watchdogs_api_watchdog_reset(struct WatchdogHandler *con
 enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *watchdogs_handler, struct Watchdog *watchdog);
 
 /*!
+ * \brief Signal liveness: a running watchdog is petted, a timed out watchdog is restarted,
+ *        a stopped watchdog is left stopped.
+ *
+ * \param watchdogs_handler A pointer to the watchdog handler structure
+ * \param watchdog A pointer to the watchdog
+ *
+ * \retval WATCHDOG_RC_NULL_POINTER The watchdog handler, the watchdog or the tick getter is NULL
+ * \retval WATCHDOG_RC_UNINITIALIZED The watchdog is not initialized
+ * \retval WATCHDOG_RC_NOT_RUNNING The watchdog is stopped
+ * \retval WATCHDOG_RC_TEMPORAL_DISCONTINUITY The user tried to travel to the past
+ * \retval WATCHDOG_RC_ERROR An error occurred during the execution of the function
+ * \retval WATCHDOG_RC_OK Otherwise
+ */
+enum WatchdogReturnCode watchdogs_api_watchdog_feed(struct WatchdogHandler *watchdogs_handler, struct Watchdog *watchdog);
+
+/*!
  * \brief Check if the watchdog is running
  *
  * \param watchdog A pointer to the watchdog
