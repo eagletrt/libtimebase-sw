@@ -21,8 +21,8 @@
 /*!
  * \brief The max number of tasks that can be initialized
  */
-#ifndef MAX_TASKS
-#define MAX_TASKS (20U)
+#ifndef TASKS_MAX_COUNT
+#define TASKS_MAX_COUNT (20U)
 #endif
 /*! 
  * \brief The callback signature of a task
@@ -69,7 +69,7 @@ struct Task {
 };
 
 /*! \brief The list of tasks */
-typedef struct Task TaskList[MAX_TASKS];
+typedef struct Task TaskList[TASKS_MAX_COUNT];
 
 /*!
  * \brief The main structure of the tasks module, containing all the necessary information to manage the tasks
@@ -79,7 +79,7 @@ struct TasksHandler {
     TaskList task_list;                         /*!< The list of tasks */
     uint8_t task_num;                           /*!< The number of tasks initialized */
     task_tick_callback get_tick;                /*!< Function callback for getting the tick*/
-    enum TaskState actual_state[MAX_TASKS];     /*!< The actual state of the tasks in the heap, this array reflects it directly*/
+    enum TaskState actual_state[TASKS_MAX_COUNT];     /*!< The actual state of the tasks in the heap, this array reflects it directly*/
     struct MinHeapHandler scheduled_tasks;      /*!< The heap containing the scheduled tasks */
     struct ArenaAllocatorHandler arena_handler; /*!< The arena allocator handler used to manage the memory of the scheduled tasks */
     uint16_t dropped_tasks;                     /*!< The number of tasks that were dropped because else they would have run multiple times in the same tick (long overdue tasks) */
@@ -93,7 +93,7 @@ enum TasksReturnCode {
     TASKS_RC_INVALID_ID,             /*!< The given identifier does not exists */
     TASKS_RC_TEMPORAL_DISCONTINUITY, /*!< The user tried to travel to the past but time must go on */
     TASKS_RC_NULL_POINTER,           /*!< A null pointer was passed as argument */
-    TASKS_RC_INVALID_LIST,           /*!< The given list of tasks is not valid, either because it contains a null task or because the number of tasks is 0 or greater than MAX_TASKS*/
+    TASKS_RC_INVALID_LIST,           /*!< The given list of tasks is not valid, either because it contains a null task or because the number of tasks is 0 or greater than TASKS_MAX_COUNT*/
     TASKS_RC_ERROR                   /*!< An error occurred during the operation, for example when updating the heap */
 };
 

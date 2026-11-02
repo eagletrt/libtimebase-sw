@@ -19,7 +19,9 @@
 
 #include "eagletrt-api.h"
 
-#define MAX_WATCHDOGS (20U)
+#ifndef WATCHDOGS_MAX_COUNT
+#define WATCHDOGS_MAX_COUNT (20U)
+#endif
 
 /*!
  * \brief Return code for the watchdog module functions

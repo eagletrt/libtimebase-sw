@@ -17,14 +17,14 @@
  *
  * \param tasks_handler The pointer to the tasks handler structure, must not be NULL
  * \param t_list The list of tasks to initialize, must not be NULL and must contain at least one task, all the tasks must have a unique identifier starting from 0 and sequential, no task can be initialized to paused state
- * \param num_tasks The number of tasks in the list, must be greater than 0 and less than or equal to MAX_TASKS
+ * \param num_tasks The number of tasks in the list, must be greater than 0 and less than or equal to TASKS_MAX_COUNT
  * \param get_tick The function that returns the current tick, must not be NULL. Any tick source can be used, for
  * example a wrapper around timebase_get_tick, the HAL tick or the RTOS tick. It is called once to schedule the tasks
  * and its value is used as the starting point for the temporal continuity check
  * 
  * \retval TASKS_RC_OK The operation was successful
  * \retval TASKS_RC_NULL_POINTER A null pointer was passed as argument (the handler, the list or the tick getter)
- * \retval TASKS_RC_INVALID_LIST The given list of tasks is not valid, either because it contains a null task, because the number of tasks is 0 or greater than MAX_TASKS or because the task IDs are not unique and sequential starting from 0
+ * \retval TASKS_RC_INVALID_LIST The given list of tasks is not valid, either because it contains a null task, because the number of tasks is 0 or greater than TASKS_MAX_COUNT or because the task IDs are not unique and sequential starting from 0
  * \retval TASKS_RC_ERROR An error occurred during the operation
  */
 enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList t_list, uint8_t num_tasks, task_tick_callback get_tick);

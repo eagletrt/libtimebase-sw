@@ -148,7 +148,7 @@ enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList
     if (tasks_handler == NULL || t_list == NULL || get_tick == NULL) {
         return TASKS_RC_NULL_POINTER;
     }
-    if (num_tasks == 0 || num_tasks > MAX_TASKS) {
+    if (num_tasks == 0 || num_tasks > TASKS_MAX_COUNT) {
         return TASKS_RC_INVALID_LIST;
     }
 
@@ -158,7 +158,7 @@ enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList
 
     if (min_heap_api_init(&tasks_handler->scheduled_tasks,
                           sizeof(struct Task *),
-                          MAX_TASKS,
+                          TASKS_MAX_COUNT,
                           prv_task_compare,
                           &tasks_handler->arena_handler) != MIN_HEAP_RC_OK) {
         return TASKS_RC_ERROR;

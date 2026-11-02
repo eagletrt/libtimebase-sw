@@ -149,7 +149,7 @@ void test_tasks_init_with_invalid_count_returns_error(void) {
     enum TasksReturnCode rc;
 
     current_tick = 0U;
-    rc = tasks_api_init(&tasks_handler, t_list, MAX_TASKS + 1U, fake_get_tick);
+    rc = tasks_api_init(&tasks_handler, t_list, TASKS_MAX_COUNT + 1U, fake_get_tick);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_LIST, rc, "Expected INVALID_LIST return code");
 }
@@ -237,7 +237,7 @@ void test_tasks_handle_task_transition_with_null_handler_returns_error(void) {
 
 void test_tasks_handle_task_transition_with_invalid_id_returns_error(void) {
     enum TasksReturnCode rc;
-    rc = prv_handle_task_transition(&tasks_handler, MAX_TASKS + 1U, 0U);
+    rc = prv_handle_task_transition(&tasks_handler, TASKS_MAX_COUNT + 1U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
@@ -618,7 +618,7 @@ void test_tasks_enable_with_invalid_id_returns_error(void) {
     enum TasksReturnCode rc;
 
     current_tick = 0U;
-    rc = tasks_api_enable_task(&tasks_handler, MAX_TASKS + 1U);
+    rc = tasks_api_enable_task(&tasks_handler, TASKS_MAX_COUNT + 1U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
@@ -748,7 +748,7 @@ void test_tasks_pause_with_invalid_id_returns_error(void) {
     enum TasksReturnCode rc;
 
     current_tick = 0U;
-    rc = tasks_api_pause_task(&tasks_handler, MAX_TASKS + 1U);
+    rc = tasks_api_pause_task(&tasks_handler, TASKS_MAX_COUNT + 1U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
@@ -945,7 +945,7 @@ void test_tasks_disable_with_invalid_id_returns_error(void) {
     enum TasksReturnCode rc;
 
     current_tick = 0U;
-    rc = tasks_api_disable_task(&tasks_handler, MAX_TASKS + 1U);
+    rc = tasks_api_disable_task(&tasks_handler, TASKS_MAX_COUNT + 1U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
@@ -1017,7 +1017,7 @@ void test_tasks_update_task_with_invalid_id_returns_error(void) {
     enum TasksReturnCode rc;
 
     current_tick = 0U;
-    rc = tasks_api_update_task(&tasks_handler, MAX_TASKS + 1U, 10U, 0U, 0U);
+    rc = tasks_api_update_task(&tasks_handler, TASKS_MAX_COUNT + 1U, 10U, 0U, 0U);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }
@@ -1167,7 +1167,7 @@ void test_tasks_get_task_with_invalid_id_returns_error(void) {
     enum TasksReturnCode rc;
     struct Task task;
 
-    rc = tasks_api_get_task(&tasks_handler, MAX_TASKS + 1U, &task);
+    rc = tasks_api_get_task(&tasks_handler, TASKS_MAX_COUNT + 1U, &task);
 
     TEST_ASSERT_EQUAL_MESSAGE(TASKS_RC_INVALID_ID, rc, "Expected INVALID_ID return code");
 }

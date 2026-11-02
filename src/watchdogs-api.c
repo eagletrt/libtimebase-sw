@@ -90,7 +90,7 @@ enum WatchdogReturnCode watchdogs_api_init_pool(struct WatchdogHandler *watchdog
 
     if (min_heap_api_init(&watchdogs_handler->scheduled_watchdogs,
                           sizeof(struct Watchdog *),
-                          MAX_WATCHDOGS,
+                          WATCHDOGS_MAX_COUNT,
                           prv_watchdog_compare,
                           &watchdogs_handler->arena_handler) != MIN_HEAP_RC_OK) {
         return WATCHDOG_RC_ERROR;
@@ -329,12 +329,12 @@ enum WatchdogReturnCode watchdogs_api_watchdog_feed(struct WatchdogHandler *cons
     }
 
     switch (watchdog->watchdog_state) {
-    case WATCHDOG_STATE_RUNNING:
-        return watchdogs_api_watchdog_pet(watchdogs_handler, watchdog);
-    case WATCHDOG_STATE_TIMED_OUT:
-        return watchdogs_api_watchdog_restart(watchdogs_handler, watchdog);
-    default:
-        return WATCHDOG_RC_NOT_RUNNING;
+        case WATCHDOG_STATE_RUNNING:
+            return watchdogs_api_watchdog_pet(watchdogs_handler, watchdog);
+        case WATCHDOG_STATE_TIMED_OUT:
+            return watchdogs_api_watchdog_restart(watchdogs_handler, watchdog);
+        default:
+            return WATCHDOG_RC_NOT_RUNNING;
     }
 }
 
