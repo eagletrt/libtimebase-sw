@@ -19,7 +19,9 @@
 
 #include "eagletrt-api.h"
 
-#define MAX_WATCHDOGS (20U)
+#ifndef WATCHDOGS_MAX_COUNT
+#define WATCHDOGS_MAX_COUNT (20U)
+#endif
 
 /*!
  * \brief Return code for the watchdog module functions
@@ -49,7 +51,13 @@ enum WatchdogState {
  * 
  * \details When the watchdog times-out it unregister itself from the timebase automatically
  */
-typedef void (*timeout_callback)(void);
+typedef void (*watchdog_timeout_callback)(void);
+
+/*!
+ * \brief Type definition for a function that is called every time the module
+ *        needs the tick.
+ */
+typedef uint32_t (*watchdog_tick_callback)(void);
 
 /*!
  * \brief Definiton of a single watchdog
@@ -60,22 +68,21 @@ typedef void (*timeout_callback)(void);
  * \param watchdog_callback The function that is called when the watchdog times-out
  */
 struct Watchdog {
-    enum WatchdogState watchdog_state;  /*!< The state of the watchdog */
-    timeout_callback watchdog_callback; /*!< The function that is called when the watchdog times-out */
-    uint32_t timeout;                   /*!< The number of ticks that should elapse for the watchdog to time-out */
-    uint32_t next_trigger;              /*!< The tick at which the watchdog will time-out */
-    bool is_initialized;                /*!< True if the watchdog is initialized, false otherwise */
+    enum WatchdogState watchdog_state;           /*!< The state of the watchdog */
+    watchdog_timeout_callback watchdog_callback; /*!< The function that is called when the watchdog times-out */
+    uint32_t timeout;                            /*!< The number of ticks that should elapse for the watchdog to time-out */
+    uint32_t next_trigger;                       /*!< The tick at which the watchdog will time-out */
+    bool is_initialized;                         /*!< True if the watchdog is initialized, false otherwise */
 };
 
 /*!
  * \brief Definition of the watchdog handler structure
  */
 struct WatchdogHandler {
+    watchdog_tick_callback get_tick;            /*!< The tick getter function */
     struct MinHeapHandler scheduled_watchdogs;  /*!< The heap containing the scheduled tasks */
     struct ArenaAllocatorHandler arena_handler; /*!< The arena allocator handler used to manage the memory of the scheduled tasks */
-
-    bool watchdog_module_enabled; /*!< True if the watchdog module is enabled, false otherwise */
-    uint32_t prev_tick;           /*!< The last tick at which the watchdogs were updated used for temporal continuity disabling the module*/
+    uint32_t prev_tick;                         /*!< The last tick at which the watchdogs were updated used for temporal continuity disabling the module*/
 };
 
 #endif // WATCHDOGS_H

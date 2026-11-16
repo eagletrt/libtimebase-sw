@@ -8,6 +8,7 @@
 
 #include "watchdogs-api.h"
 #include "watchdogs.h"
+#include <stdint.h>
 
 /*!
  * \brief Compare two watchdogs based on their next trigger time.
@@ -77,9 +78,9 @@ EAGLETRT_STATIC enum WatchdogReturnCode prv_watchdog_unregister(struct WatchdogH
     return WATCHDOG_RC_OK;
 }
 
-enum WatchdogReturnCode watchdogs_api_init_pool(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
+enum WatchdogReturnCode watchdogs_api_init_pool(struct WatchdogHandler *watchdogs_handler, watchdog_tick_callback get_tick) {
 
-    if (watchdogs_handler == NULL) {
+    if (watchdogs_handler == NULL || get_tick == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
     }
 
@@ -89,21 +90,26 @@ enum WatchdogReturnCode watchdogs_api_init_pool(struct WatchdogHandler *watchdog
 
     if (min_heap_api_init(&watchdogs_handler->scheduled_watchdogs,
                           sizeof(struct Watchdog *),
-                          MAX_WATCHDOGS,
+                          WATCHDOGS_MAX_COUNT,
                           prv_watchdog_compare,
                           &watchdogs_handler->arena_handler) != MIN_HEAP_RC_OK) {
         return WATCHDOG_RC_ERROR;
     };
 
-    watchdogs_handler->prev_tick = current_tick;
+    watchdogs_handler->get_tick = get_tick;
+
+    watchdogs_handler->prev_tick = get_tick();
 
     return WATCHDOG_RC_OK;
 };
 
-enum WatchdogReturnCode watchdogs_api_routine(struct WatchdogHandler *watchdogs_handler, uint32_t current_tick) {
-    if (watchdogs_handler == NULL) {
+enum WatchdogReturnCode watchdogs_api_routine(struct WatchdogHandler *watchdogs_handler) {
+    if (watchdogs_handler == NULL || watchdogs_handler->get_tick == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
     }
+
+    uint32_t current_tick = watchdogs_handler->get_tick();
+
     if (watchdogs_handler->prev_tick > current_tick) {
         return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
     }
@@ -145,7 +151,7 @@ enum WatchdogReturnCode watchdogs_api_routine(struct WatchdogHandler *watchdogs_
     return WATCHDOG_RC_OK;
 }
 
-enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watchdog, uint32_t timeout, timeout_callback callback) {
+enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watchdog, uint32_t timeout, watchdog_timeout_callback callback) {
     if (watchdog == NULL || callback == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
     }
@@ -166,10 +172,13 @@ enum WatchdogReturnCode watchdogs_api_init_watchdog(struct Watchdog *const watch
     return WATCHDOG_RC_OK;
 }
 
-enum WatchdogReturnCode watchdogs_api_watchdog_start(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick) {
-    if (watchdogs_handler == NULL || watchdog == NULL) {
+enum WatchdogReturnCode watchdogs_api_watchdog_start(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog) {
+    if (watchdogs_handler == NULL || watchdog == NULL || watchdogs_handler->get_tick == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
     }
+
+    uint32_t current_tick = watchdogs_handler->get_tick();
+
     if (watchdogs_handler->prev_tick > current_tick) {
         return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
     }
@@ -220,14 +229,17 @@ enum WatchdogReturnCode watchdogs_api_watchdog_stop(struct WatchdogHandler *cons
     return WATCHDOG_RC_OK;
 }
 
-enum WatchdogReturnCode watchdogs_api_watchdog_restart(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick) {
+enum WatchdogReturnCode watchdogs_api_watchdog_restart(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog) {
 
-    if (watchdogs_handler == NULL || watchdog == NULL) {
+    if (watchdogs_handler == NULL || watchdog == NULL || watchdogs_handler->get_tick == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
     }
     if (watchdog->is_initialized == false) {
         return WATCHDOG_RC_UNINITIALIZED;
     }
+
+    uint32_t current_tick = watchdogs_handler->get_tick();
+
     if (watchdogs_handler->prev_tick > current_tick) {
         return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
     }
@@ -250,7 +262,7 @@ enum WatchdogReturnCode watchdogs_api_watchdog_restart(struct WatchdogHandler *c
     return WATCHDOG_RC_OK;
 }
 
-enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog, uint32_t current_tick) {
+enum WatchdogReturnCode watchdogs_api_watchdog_reset(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog) {
 
     if (watchdogs_handler == NULL || watchdog == NULL) {
         return WATCHDOG_RC_NULL_POINTER;
@@ -258,6 +270,29 @@ enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *const
     if (watchdog->is_initialized == false) {
         return WATCHDOG_RC_UNINITIALIZED;
     }
+
+    if (watchdog->watchdog_state == WATCHDOG_STATE_RUNNING) {
+        if (prv_watchdog_unregister(watchdogs_handler, watchdog) != WATCHDOG_RC_OK) {
+            return WATCHDOG_RC_ERROR;
+        }
+    }
+
+    watchdog->watchdog_state = WATCHDOG_STATE_NOT_RUNNING;
+
+    return WATCHDOG_RC_OK;
+}
+
+enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog) {
+
+    if (watchdogs_handler == NULL || watchdog == NULL || watchdogs_handler->get_tick == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
+    }
+    if (watchdog->is_initialized == false) {
+        return WATCHDOG_RC_UNINITIALIZED;
+    }
+
+    uint32_t current_tick = watchdogs_handler->get_tick();
+
     if (watchdogs_handler->prev_tick > current_tick) {
         return WATCHDOG_RC_TEMPORAL_DISCONTINUITY;
     }
@@ -282,6 +317,25 @@ enum WatchdogReturnCode watchdogs_api_watchdog_pet(struct WatchdogHandler *const
     }
 
     return WATCHDOG_RC_OK;
+}
+
+enum WatchdogReturnCode watchdogs_api_watchdog_feed(struct WatchdogHandler *const watchdogs_handler, struct Watchdog *const watchdog) {
+
+    if (watchdogs_handler == NULL || watchdog == NULL) {
+        return WATCHDOG_RC_NULL_POINTER;
+    }
+    if (watchdog->is_initialized == false) {
+        return WATCHDOG_RC_UNINITIALIZED;
+    }
+
+    switch (watchdog->watchdog_state) {
+        case WATCHDOG_STATE_RUNNING:
+            return watchdogs_api_watchdog_pet(watchdogs_handler, watchdog);
+        case WATCHDOG_STATE_TIMED_OUT:
+            return watchdogs_api_watchdog_restart(watchdogs_handler, watchdog);
+        default:
+            return WATCHDOG_RC_NOT_RUNNING;
+    }
 }
 
 bool watchdogs_api_watchdog_is_running(struct Watchdog *const watchdog) {

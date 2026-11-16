@@ -15,17 +15,31 @@
 #include "tasks-api.h"
 #include <inttypes.h>
 
-void print_task_1(void) {
+/*
+ * The tasks module reads the time by itself through this function, so the tasks functions
+ * do not need a tick parameter. Here the "clock" is a variable that the example moves by hand,
+ * on a real target the function would return the timebase, HAL or RTOS tick.
+ */
+static uint32_t current_tick;
+
+static uint32_t get_tick(void) {
+    return current_tick;
+}
+
+void print_task_1(uint8_t task_id) {
+    (void)task_id;
     printf("Task_1 executed");
     return;
 }
 
-void print_task_2(void) {
+void print_task_2(uint8_t task_id) {
+    (void)task_id;
     printf("Task_2 executed");
     return;
 }
 
-void print_task_3(void) {
+void print_task_3(uint8_t task_id) {
+    (void)task_id;
     printf("Task_3 executed");
     return;
 }
@@ -73,7 +87,7 @@ void init_tasks_module(struct TasksHandler *task_handler) {
         }
     };
 
-    enum TasksReturnCode rc = tasks_api_init(task_handler, t_l, TASK_COUNT, 0U);
+    enum TasksReturnCode rc = tasks_api_init(task_handler, t_l, TASK_COUNT, get_tick);
 
     if (rc == TASKS_RC_OK) {
         printf("The module initialized correctly!\n");
@@ -88,6 +102,7 @@ int main(void) {
 
     struct TasksHandler tasks_handler;
 
+    current_tick = 0U;
     init_tasks_module(&tasks_handler);
 
     /*
@@ -101,21 +116,24 @@ int main(void) {
 
     for (uint32_t i = 0; i <= 25; i++) {
 
+        current_tick = i;
+
         if (i == 7) {
-            tasks_api_enable_task(&tasks_handler, PRINT_TASK_2, i);
+            tasks_api_enable_task(&tasks_handler, PRINT_TASK_2);
         }
 
         printf("Tick: %" PRId32 "  -> ", i);
-        tasks_api_routine(&tasks_handler, i);
+        tasks_api_routine(&tasks_handler);
 
         printf("\n");
     }
 
-    tasks_api_pause_task(&tasks_handler, PRINT_TASK_2, 25U);
+    current_tick = 25U;
+    tasks_api_pause_task(&tasks_handler, PRINT_TASK_2);
 
     // Update and start task 3 to run 5 times with an interval of 3 ticks and an immediate start, so it should fire at ticks 25, 28, 31, 34 and 37
-    tasks_api_update_task(&tasks_handler, PRINT_TASK_3, 3U, 0U, 5U, 25U);
-    tasks_api_enable_task(&tasks_handler, PRINT_TASK_3, 25U);
+    tasks_api_update_task(&tasks_handler, PRINT_TASK_3, 3U, 0U, 5U);
+    tasks_api_enable_task(&tasks_handler, PRINT_TASK_3);
 
     /*
      * Pause task 2 at tick 25 and see that it doesn't fire at tick 26
@@ -126,27 +144,30 @@ int main(void) {
      */
     for (uint32_t i = 25; i <= 60; i++) {
 
+        current_tick = i;
+
         if (i == 35) {
-            tasks_api_enable_task(&tasks_handler, PRINT_TASK_2, i);
+            tasks_api_enable_task(&tasks_handler, PRINT_TASK_2);
         }
 
         printf("Tick: %" PRId32 "  -> ", i);
-        tasks_api_routine(&tasks_handler, i);
+        tasks_api_routine(&tasks_handler);
 
         printf("\n");
     }
 
-    tasks_api_disable_task(&tasks_handler, PRINT_TASK_1, 100U);
-    tasks_api_disable_task(&tasks_handler, PRINT_TASK_2, 100U);
-    tasks_api_disable_task(&tasks_handler, PRINT_TASK_3, 100U);
+    current_tick = 100U;
+    tasks_api_disable_task(&tasks_handler, PRINT_TASK_1);
+    tasks_api_disable_task(&tasks_handler, PRINT_TASK_2);
+    tasks_api_disable_task(&tasks_handler, PRINT_TASK_3);
 
     /*
      * After disabling and reenabling the tasks, they should all resume from the beginning as if they were never executed before
      */
 
-    tasks_api_enable_task(&tasks_handler, PRINT_TASK_1, 100U);
-    tasks_api_enable_task(&tasks_handler, PRINT_TASK_2, 100U);
-    tasks_api_enable_task(&tasks_handler, PRINT_TASK_3, 100U);
+    tasks_api_enable_task(&tasks_handler, PRINT_TASK_1);
+    tasks_api_enable_task(&tasks_handler, PRINT_TASK_2);
+    tasks_api_enable_task(&tasks_handler, PRINT_TASK_3);
 
     /*
      * We can see the same behaviour if the tick doesn't have a regular increment
@@ -164,8 +185,10 @@ int main(void) {
 
     for (uint32_t i = 100; i <= 150;) {
 
+        current_tick = i;
+
         printf("Tick: %" PRIu32 "  -> ", i);
-        tasks_api_routine(&tasks_handler, i);
+        tasks_api_routine(&tasks_handler);
 
         printf("\n");
 

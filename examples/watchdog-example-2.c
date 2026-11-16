@@ -4,7 +4,7 @@
  * \author Alessandro Giustina [giustinalessandro@gmail.com]
  *
  * \brief Advanced example of the watchdog module usage.
- * \details Demonstrates petting (resetting), stopping, manual timeouts, and state checking.
+ * \details Demonstrates petting, stopping, resetting, restarting a watchdog after a time-out, and state checking.
  */
 
 #include <stdint.h>
@@ -14,6 +14,16 @@
 #include <inttypes.h>
 
 #include "watchdogs-api.h"
+
+/*
+ * The watchdogs module reads the time through this function. Here the "clock" is a variable
+ * that the example moves by hand, on a real target it would return the timebase, HAL or RTOS tick.
+ */
+static uint32_t current_tick;
+
+static uint32_t get_tick(void) {
+    return current_tick;
+}
 
 // --- Callbacks ---
 void sensor_timeout_cb(void) {
@@ -25,20 +35,21 @@ void comm_timeout_cb(void) {
 }
 
 void system_timeout_cb(void) {
-    printf("[FATAL] System critical failure forced! ");
+    printf("[FATAL] System watchdog timed out! ");
 }
 
 int main(void) {
     struct WatchdogHandler watchdogs_handler;
-    struct Watchdog sensor_wd;
-    struct Watchdog comm_wd;
-    struct Watchdog system_wd;
+    struct Watchdog sensor_wd = { 0 }; // watchdogs must be zero-initialized
+    struct Watchdog comm_wd = { 0 };
+    struct Watchdog system_wd = { 0 };
 
     /*
-     * Initialize the watchdog pool and enable it immediately at tick 0.
+     * Initialize the watchdog pool at tick 0. From now on the module reads the time by itself
+     * calling get_tick, so none of the following functions needs a tick parameter.
      */
-    watchdogs_api_init_pool(&watchdogs_handler, 0U);
-    watchdogs_api_enable_pool(&watchdogs_handler, 0U);
+    current_tick = 0U;
+    watchdogs_api_init_pool(&watchdogs_handler, get_tick);
 
     /*
      * Initialize 3 different watchdogs with specific timeouts.
@@ -51,13 +62,14 @@ int main(void) {
      * Start all watchdogs at tick 0.
      * Expected baseline triggers: Sensor at 10, Comm at 15, System at 25.
      */
-    watchdogs_api_watchdog_start(&watchdogs_handler, &sensor_wd, 0U);
-    watchdogs_api_watchdog_start(&watchdogs_handler, &comm_wd, 0U);
-    watchdogs_api_watchdog_start(&watchdogs_handler, &system_wd, 0U);
+    watchdogs_api_watchdog_start(&watchdogs_handler, &sensor_wd);
+    watchdogs_api_watchdog_start(&watchdogs_handler, &comm_wd);
+    watchdogs_api_watchdog_start(&watchdogs_handler, &system_wd);
 
     printf("--- Starting Watchdog Simulation ---\n");
 
-    for (uint32_t i = 1; i <= 30; i++) {
+    for (uint32_t i = 1; i <= 50; i++) {
+        current_tick = i;
         printf("Tick: %2" PRIu32 " | ", i);
 
         /*
@@ -68,7 +80,7 @@ int main(void) {
          */
         if (i == 5 || i == 12) {
             printf("[Petting Sensor WD] ");
-            watchdogs_api_watchdog_pet(&watchdogs_handler, &sensor_wd, i);
+            watchdogs_api_watchdog_pet(&watchdogs_handler, &sensor_wd);
         }
 
         /*
@@ -82,19 +94,27 @@ int main(void) {
         }
 
         /*
-         * 3. Manual Timeout Example:
+         * 3. Reset Example:
          * The System WD is scheduled to fire at tick 25. However, at tick 18, 
-         * an external fault is detected, so we manually trigger its timeout early.
+         * an external fault is detected and the supervised part is shut down, so the
+         * watchdog is reset: it is removed from the scheduler without firing its callback.
+         * It is started again at tick 20 and will fire at tick 45 (20 + 25).
+         * Reset works in any state, so it is also the way to bring a timed-out watchdog
+         * back to the not running state before starting it again.
          */
         if (i == 18) {
-            printf("[Forcing System WD Timeout] ");
-            watchdogs_api_watchdog_timeout(&watchdogs_handler, &system_wd);
+            printf("[Resetting System WD] ");
+            watchdogs_api_watchdog_reset(&watchdogs_handler, &system_wd);
+        }
+        if (i == 20) {
+            printf("[Starting System WD again] ");
+            watchdogs_api_watchdog_start(&watchdogs_handler, &system_wd);
         }
 
         /*
          * Execute the routine to process scheduled watchdogs.
          */
-        watchdogs_api_routine(&watchdogs_handler, i);
+        watchdogs_api_routine(&watchdogs_handler);
 
         /*
          * 4. State Checking Example:

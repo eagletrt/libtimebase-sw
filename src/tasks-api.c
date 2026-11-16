@@ -7,6 +7,7 @@
  */
 
 #include "tasks.h"
+#include <stdint.h>
 
 /*!
  * \brief Compares two tasks based on their next trigger times
@@ -99,8 +100,11 @@ EAGLETRT_STATIC enum TasksReturnCode prv_handle_task_transition(struct TasksHand
         // (task->next_trigger - task->last_update) is the remaining time to the next trigger when the task was paused, if the task was paused and there is still time to wait before the next trigger,
         // we can just add that remaining time to the current tick to get the new trigger time,
         // otherwise we can just calculate the trigger time from the start time of the task
-        if (from_state == TASKS_STATE_PAUSED && (int32_t)(task->next_trigger - task->last_update) >= 0) {
+        if (from_state == TASKS_STATE_PAUSED && ((int32_t)(task->next_trigger - task->last_update) >= 0)) {
             task->next_trigger = tick + (task->next_trigger - task->last_update);
+        } else if (from_state == TASKS_STATE_PAUSED) {
+            // If the task was paused and the next trigger time had already passed, we can just set the next trigger time to the current tick, so that it will be executed immediately
+            task->next_trigger = tick;
         } else {
             tasks_handler->task_list[task_id].repeats = tasks_handler->task_list[task_id].int_repeats;
             task->next_trigger = tick + task->start;
@@ -139,12 +143,12 @@ EAGLETRT_STATIC enum TasksReturnCode prv_tasks_update_heap(struct TasksHandler *
     return TASKS_RC_OK;
 }
 
-enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList t_list, uint8_t num_tasks, uint32_t current_tick) {
+enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList t_list, uint8_t num_tasks, task_tick_callback get_tick) {
 
-    if (tasks_handler == NULL || t_list == NULL) {
+    if (tasks_handler == NULL || t_list == NULL || get_tick == NULL) {
         return TASKS_RC_NULL_POINTER;
     }
-    if (num_tasks == 0 || num_tasks > MAX_TASKS) {
+    if (num_tasks == 0 || num_tasks > TASKS_MAX_COUNT) {
         return TASKS_RC_INVALID_LIST;
     }
 
@@ -154,7 +158,7 @@ enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList
 
     if (min_heap_api_init(&tasks_handler->scheduled_tasks,
                           sizeof(struct Task *),
-                          MAX_TASKS,
+                          TASKS_MAX_COUNT,
                           prv_task_compare,
                           &tasks_handler->arena_handler) != MIN_HEAP_RC_OK) {
         return TASKS_RC_ERROR;
@@ -172,17 +176,25 @@ enum TasksReturnCode tasks_api_init(struct TasksHandler *tasks_handler, TaskList
 
     tasks_handler->task_num = num_tasks;
 
-    tasks_handler->prev_tick = current_tick;
+    tasks_handler->get_tick = get_tick;
 
-    prv_tasks_update_heap(tasks_handler, current_tick);
+    tasks_handler->prev_tick = tasks_handler->get_tick();
+
+    if (prv_tasks_update_heap(tasks_handler, tasks_handler->get_tick()) != TASKS_RC_OK) {
+        memset(tasks_handler, 0, sizeof(*tasks_handler));
+        return TASKS_RC_ERROR;
+    }
 
     return TASKS_RC_OK;
 };
 
-enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
+enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler) {
+    if (tasks_handler == NULL || tasks_handler->get_tick == NULL) {
         return TASKS_RC_NULL_POINTER;
     }
+
+    uint32_t current_tick = tasks_handler->get_tick();
+
     if (tasks_handler->task_num == 0) {
         return TASKS_RC_ERROR;
     }
@@ -191,6 +203,7 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
     }
 
     if (min_heap_api_is_empty(&tasks_handler->scheduled_tasks)) {
+        tasks_handler->prev_tick = current_tick;
         return TASKS_RC_OK;
     }
 
@@ -202,23 +215,31 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
 
     for (;;) {
         if (next_task->next_trigger > current_tick) {
-            min_heap_api_insert(&tasks_handler->scheduled_tasks, &next_task);
+            if (min_heap_api_insert(&tasks_handler->scheduled_tasks, &next_task) != MIN_HEAP_RC_OK) {
+                return TASKS_RC_ERROR;
+            }
             break;
         }
 
-        // Execute the task
-        next_task->function(next_task->task_id);
-
+        // Make the task state consistent
         next_task->last_update = current_tick;
 
         if (next_task->int_repeats > 0) {
             --(next_task->repeats);
         }
 
-        if ((next_task->repeats > 0 || next_task->int_repeats == 0) && next_task->state == TASKS_STATE_ENABLED) {
+        if ((next_task->repeats > 0 || next_task->int_repeats == 0)) {
 
             // Update the next trigger time
             next_task->next_trigger += EAGLETRT_API_MAX(next_task->interval, 1U);
+
+            // Protect against long overdue tasks that would have run multiple times in the same tick in burst
+            while (next_task->next_trigger <= current_tick) {
+                next_task->next_trigger += EAGLETRT_API_MAX(next_task->interval, 1U);
+                if (tasks_handler->dropped_tasks < UINT16_MAX) {
+                    ++tasks_handler->dropped_tasks;
+                }
+            }
 
             // Reinsert the task with the updated trigger time
             if (min_heap_api_insert(&tasks_handler->scheduled_tasks, &next_task) != MIN_HEAP_RC_OK) {
@@ -229,6 +250,9 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
             next_task->state = TASKS_STATE_DISABLED;
             tasks_handler->actual_state[next_task->task_id] = TASKS_STATE_DISABLED;
         }
+
+        // Run the task's callback function
+        next_task->function(next_task->task_id);
 
         if (min_heap_api_is_empty(&tasks_handler->scheduled_tasks)) {
             break;
@@ -245,10 +269,13 @@ enum TasksReturnCode tasks_api_routine(struct TasksHandler *tasks_handler, uint3
     return TASKS_RC_OK;
 }
 
-enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
+enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, uint8_t task_id) {
+    if (tasks_handler == NULL || tasks_handler->get_tick == NULL) {
         return TASKS_RC_NULL_POINTER;
     }
+
+    uint32_t current_tick = tasks_handler->get_tick();
+
     if (tasks_handler->prev_tick > current_tick) {
         return TASKS_RC_TEMPORAL_DISCONTINUITY;
     }
@@ -263,10 +290,13 @@ enum TasksReturnCode tasks_api_enable_task(struct TasksHandler *tasks_handler, u
     return prv_handle_task_transition(tasks_handler, task_id, current_tick);
 }
 
-enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
+enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, uint8_t task_id) {
+    if (tasks_handler == NULL || tasks_handler->get_tick == NULL) {
         return TASKS_RC_NULL_POINTER;
     }
+
+    uint32_t current_tick = tasks_handler->get_tick();
+
     if (tasks_handler->prev_tick > current_tick) {
         return TASKS_RC_TEMPORAL_DISCONTINUITY;
     }
@@ -284,10 +314,13 @@ enum TasksReturnCode tasks_api_pause_task(struct TasksHandler *tasks_handler, ui
     return prv_handle_task_transition(tasks_handler, task_id, current_tick);
 }
 
-enum TasksReturnCode tasks_api_disable_task(struct TasksHandler *tasks_handler, uint8_t task_id, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
+enum TasksReturnCode tasks_api_disable_task(struct TasksHandler *tasks_handler, uint8_t task_id) {
+    if (tasks_handler == NULL || tasks_handler->get_tick == NULL) {
         return TASKS_RC_NULL_POINTER;
     }
+
+    uint32_t current_tick = tasks_handler->get_tick();
+
     if (tasks_handler->prev_tick > current_tick) {
         return TASKS_RC_TEMPORAL_DISCONTINUITY;
     }
@@ -302,10 +335,13 @@ enum TasksReturnCode tasks_api_disable_task(struct TasksHandler *tasks_handler, 
     return prv_handle_task_transition(tasks_handler, task_id, current_tick);
 }
 
-enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, const uint8_t task_id, uint16_t new_interval, uint16_t new_start, uint8_t repeats, uint32_t current_tick) {
-    if (tasks_handler == NULL) {
+enum TasksReturnCode tasks_api_update_task(struct TasksHandler *tasks_handler, const uint8_t task_id, uint16_t new_interval, uint16_t new_start, uint8_t repeats) {
+    if (tasks_handler == NULL || tasks_handler->get_tick == NULL) {
         return TASKS_RC_NULL_POINTER;
     }
+
+    uint32_t current_tick = tasks_handler->get_tick();
+
     if (tasks_handler->prev_tick > current_tick) {
         return TASKS_RC_TEMPORAL_DISCONTINUITY;
     }
@@ -353,4 +389,11 @@ enum TasksReturnCode tasks_api_get_task(struct TasksHandler *tasks_handler, uint
     *task = tasks_handler->task_list[task_id];
 
     return TASKS_RC_OK;
+}
+
+uint16_t tasks_api_get_dropped_task_executions(struct TasksHandler *tasks_handler) {
+    if (tasks_handler == NULL) {
+        return 0;
+    }
+    return tasks_handler->dropped_tasks;
 }

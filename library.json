@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
   "name": "libtimebase-sw",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Timebase, task and watchdog implementation",
   "keywords": [
     "Timebase",
@@ -47,6 +47,10 @@
     {
       "name": "Watchdog Example",
       "files": "examples/watchdog-example.c"
+    },
+    {
+      "name": "Unified Example",
+      "files": "examples/unified-example.c"
     }
   ],
   "export": {
